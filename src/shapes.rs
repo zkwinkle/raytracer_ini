@@ -53,11 +53,17 @@ pub struct Sphere {
     center: Vec3,
     r: f64,
     color: Color,
+    gamma: Option<f64>,
 }
 
 impl Sphere {
     pub fn new(center: Vec3, r: f64, color: Color) -> Sphere {
-        Sphere { center, r, color }
+        Sphere {
+            center,
+            r,
+            color,
+            gamma: None,
+        }
     }
 }
 
@@ -72,12 +78,8 @@ impl ShapeCalculations for Sphere {
             * (dir.x * (anchor.x - center.x)
                 + dir.y * (anchor.y - center.y)
                 + dir.z * (anchor.z - center.z));
-        let c = (anchor.x - center.x).powi(2)
-            + (anchor.y - center.y).powi(2)
-            + (anchor.z - center.z).powi(2)
-            - self.r * self.r;
 
-        let determinant = (b * b - 4.0 * c).sqrt();
+        let determinant = (b * b - 4.0 * self.gamma.expect("Make sure to call the prepare() function after adding in all the objects to the scene")).sqrt();
 
         if determinant.is_nan() {
             None
@@ -98,6 +100,15 @@ impl ShapeCalculations for Sphere {
     fn get_color(&self) -> Color {
         self.color
     }
+
+    fn prepare(&mut self, camera: Vec3) {
+        self.gamma = Some(
+            (camera.x - self.center.x).powi(2)
+                + (camera.y - self.center.y).powi(2)
+                + (camera.z - self.center.z).powi(2)
+                - (self.r * self.r),
+        );
+    }
 }
 
 #[enum_dispatch]
@@ -106,6 +117,8 @@ pub trait ShapeCalculations {
     fn get_intersection(&self, ray: &Ray) -> Option<f64>;
 
     fn get_color(&self) -> Color;
+
+    fn prepare(&mut self, camera: Vec3);
 }
 
 #[enum_dispatch(ShapeCalculations)]
