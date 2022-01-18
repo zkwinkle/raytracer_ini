@@ -314,10 +314,9 @@ dependencies = [
 [[package]]
 name = "sdl_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/zkwinkle/sdl_wrapper#2341cc151e62bd6beb78deadc0591002724e16e1"
+source = "git+https://github.com/zkwinkle/sdl_wrapper#3cc58b434ead772cfc3f3a6d2c1fd9171f0e73f0"
 dependencies = [
  "bytemuck",
- "futures",
  "sdl2",
  "thiserror",
 ]
