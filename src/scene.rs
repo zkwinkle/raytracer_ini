@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Error, Result};
+use anyhow::{anyhow, Result};
 use configparser::ini::Ini;
 use std::path::Path;
 
@@ -35,6 +35,34 @@ impl Scene {
         }
         self
     }
+
+    pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Scene> {
+        let mut config = Ini::new();
+        let mut scene = Scene::new();
+
+        config.set_comment_symbols(&[';', '"']);
+        let map = config.load(path).map_err(|s| anyhow!(s))?;
+        println!("Map: {:?}", map);
+
+        // spheres (checks for prefix)
+        for sphere_section in config.sections().iter().filter(|s| &s[0..6] == "sphere") {
+            println!("Section!: {}", sphere_section);
+
+            let center_x = get_float_fails(&config, sphere_section, "center_x")?;
+            let center_y = get_float_fails(&config, sphere_section, "center_y")?;
+            let center_z = get_float_fails(&config, sphere_section, "center_z")?;
+            let center = Vec3::new(center_x, center_y, center_z);
+
+            let radius = get_float_fails(&config, sphere_section, "radius")
+                .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
+
+            let color = get_color_fails(&config, sphere_section)?;
+
+            scene = scene.add_sphere(center, radius, color);
+        }
+
+        Ok(scene)
+    }
 }
 
 pub struct Light {
@@ -42,6 +70,7 @@ pub struct Light {
     pub intensity: f64,
 }
 
+/// Represents the camera + the projection plane used for the raytracer.
 pub struct Observer {
     pub camera: Vec3,
 
@@ -55,9 +84,7 @@ impl Observer {
     pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Observer> {
         let mut config = Ini::new();
 
-        let map = config.load(path).map_err(|s| anyhow!(s))?;
-
-        println!("{:?}", map);
+        config.load(path).map_err(|s| anyhow!(s))?;
 
         let camera = Vec3 {
             x: get_float_fails(&config, "camera", "x")?,
@@ -103,4 +130,13 @@ fn get_float_fails(config: &Ini, section: &str, key: &str) -> Result<f64> {
                 section
             )
         })?)
+}
+
+fn get_color_fails(config: &Ini, section: &str) -> Result<Color> {
+    Color::from_hex(&config.get(section, "color").ok_or_else(|| {
+        anyhow!(
+            "Missing color attribute in section '{}' in config file",
+            section
+        )
+    })?)
 }

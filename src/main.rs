@@ -42,6 +42,8 @@ fn main() -> Result<()> {
         10.0,
         Color::new(0.1, 0.3, 0.8)?,
     );
+
+    scene = Scene::read_config("config/basic_scene.ini")?;
     //scene = scene.add_sphere(Vec3::new(20.0, 10.0, 15.0), 3.0, Color::new(0.1, 0.8, 0.3)?);
 
     let observer = Observer::read_config("config/basic_observer.ini")?;

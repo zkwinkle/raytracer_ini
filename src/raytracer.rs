@@ -36,6 +36,8 @@ pub fn raytrace<P: AsRef<Path>>(
 
     let z_t = observer.min_p.z;
 
+    let height = screen.get_height();
+
     for i in 0..screen.get_width() {
         for j in 0..screen.get_height() {
             // Get ray
@@ -49,7 +51,7 @@ pub fn raytrace<P: AsRef<Path>>(
 
             // Paint
             screen.set_color(color.r, color.g, color.b);
-            screen.plot_pixel(i, j);
+            screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
             screen.present()?;
         }
     }
