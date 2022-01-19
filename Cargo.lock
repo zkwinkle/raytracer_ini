@@ -464,7 +464,7 @@ dependencies = [
 [[package]]
 name = "sdl_wrapper"
 version = "0.1.0"
-source = "git+https://github.com/zkwinkle/sdl_wrapper#92dca3bb82bbed0019459dde997b23abe669e4c9"
+source = "git+https://github.com/zkwinkle/sdl_wrapper?tag=v0.3.0#92dca3bb82bbed0019459dde997b23abe669e4c9"
 dependencies = [
  "bytemuck",
  "image",

@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sdl_wrapper = { git = "https://github.com/zkwinkle/sdl_wrapper" }
+sdl_wrapper = { git = "https://github.com/zkwinkle/sdl_wrapper" , tag = "v0.3.0" }
 anyhow = { version = "1.0", features = ["backtrace"] }
 configparser = "3.0"
 enum_dispatch = "0.3.7"

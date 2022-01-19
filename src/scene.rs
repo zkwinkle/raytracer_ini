@@ -52,7 +52,7 @@ impl Scene {
                 .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
 
             let color = get_color_fails(&config, sphere_section)?;
-            let k_a = get_float_fails(&config, sphere_section, "k_a")?;
+            let k_a = get_float_default(&config, sphere_section, "k_a", 1.0)?;
             let k_d = get_float_fails(&config, sphere_section, "k_d")?;
 
             objects.push(Shape::Sphere(Sphere::new(center, radius, color, k_a, k_d)));
@@ -136,16 +136,18 @@ impl Observer {
             z: get_float_fails(&config, "camera", "z")?,
         };
 
+        let plane_z = get_float_default(&config, "plane", "z", 0.0)?;
+
         let min_p = Vec3 {
             x: get_float_fails(&config, "plane", "x_min")?,
             y: get_float_fails(&config, "plane", "y_min")?,
-            z: get_float_default(&config, "plane", "z", 0.0)?,
+            z: plane_z,
         };
 
         let max_p = Vec3 {
             x: get_float_fails(&config, "plane", "x_max")?,
             y: get_float_fails(&config, "plane", "y_max")?,
-            z: get_float_default(&config, "plane", "z", 0.0)?,
+            z: plane_z,
         };
 
         Ok(Observer {

@@ -19,10 +19,10 @@ fn main() -> Result<()> {
     let prepped_scene = scene.prepare(observer.camera);
 
     // sdl screen
-    let mut screen = ScreenContextManager::new("Ray Tracing Challenge", 500, 500)?;
+    let mut screen = ScreenContextManager::new("Ray Tracing Challenge", 150, 150)?;
 
     // raytrace :)
-    raytrace("images/difusa.png", &observer, &prepped_scene, &mut screen)?;
+    raytrace("images/shadows.png", &observer, &prepped_scene, &mut screen)?;
 
     Ok(())
 }
