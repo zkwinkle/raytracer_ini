@@ -8,6 +8,7 @@ use crate::vec3::Vec3;
 pub struct Scene {
     objects: Vec<Shape>,
     lights: Vec<Light>,
+    pub ambient: f64,
 }
 
 impl Scene {
@@ -16,17 +17,6 @@ impl Scene {
     }
     pub fn get_lights(&self) -> &Vec<Light> {
         &self.lights
-    }
-    pub fn new() -> Scene {
-        Scene {
-            objects: Vec::new(),
-            lights: Vec::new(),
-        }
-    }
-    pub fn add_sphere(mut self, center: Vec3, radius: f64, color: Color) -> Self {
-        self.objects
-            .push(Shape::Sphere(Sphere::new(center, radius, color)));
-        self
     }
 
     pub fn prepare(mut self, camera: Vec3) -> Self {
@@ -38,16 +28,21 @@ impl Scene {
 
     pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Scene> {
         let mut config = Ini::new();
-        let mut scene = Scene::new();
+        let mut objects = Vec::<Shape>::new();
+        let mut lights = Vec::<Light>::new();
 
         config.set_comment_symbols(&[';', '"']);
-        let map = config.load(path).map_err(|s| anyhow!(s))?;
-        println!("Map: {:?}", map);
+        config.load(path).map_err(|s| anyhow!(s))?;
+        //println!("Map: {:?}", map);
+
+        let ambient = get_float_fails(&config, "scene", "I_a")?;
 
         // spheres (checks for prefix)
-        for sphere_section in config.sections().iter().filter(|s| &s[0..6] == "sphere") {
-            println!("Section!: {}", sphere_section);
-
+        for sphere_section in config
+            .sections()
+            .iter()
+            .filter(|s| s.len() >= 6 && &s[0..6] == "sphere")
+        {
             let center_x = get_float_fails(&config, sphere_section, "center_x")?;
             let center_y = get_float_fails(&config, sphere_section, "center_y")?;
             let center_z = get_float_fails(&config, sphere_section, "center_z")?;
@@ -57,17 +52,66 @@ impl Scene {
                 .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
 
             let color = get_color_fails(&config, sphere_section)?;
+            let k_a = get_float_fails(&config, sphere_section, "k_a")?;
+            let k_d = get_float_fails(&config, sphere_section, "k_d")?;
 
-            scene = scene.add_sphere(center, radius, color);
+            objects.push(Shape::Sphere(Sphere::new(center, radius, color, k_a, k_d)));
         }
 
-        Ok(scene)
+        // lights
+        for light_section in config
+            .sections()
+            .iter()
+            .filter(|s| s.len() >= 5 && &s[0..5] == "light")
+        {
+            let x = get_float_fails(&config, light_section, "x")?;
+            let y = get_float_fails(&config, light_section, "y")?;
+            let z = get_float_fails(&config, light_section, "z")?;
+            let position = Vec3::new(x, y, z);
+
+            let intensity = get_float_fails(&config, light_section, "intensity")
+                .or_else(|_| get_float_fails(&config, light_section, "I_p"))?;
+
+            let c_1 = get_float_fails(&config, light_section, "c_1")
+                .or_else(|_| get_float_fails(&config, light_section, "C1"))?;
+            let c_2 = get_float_fails(&config, light_section, "c_2")
+                .or_else(|_| get_float_fails(&config, light_section, "C2"))?;
+            let c_3 = get_float_fails(&config, light_section, "c_3")
+                .or_else(|_| get_float_fails(&config, light_section, "C3"))?;
+
+            lights.push(Light {
+                position,
+                intensity,
+                c_1,
+                c_2,
+                c_3,
+            })
+        }
+
+        Ok(Scene {
+            objects,
+            lights,
+            ambient,
+        })
     }
 }
 
 pub struct Light {
     pub position: Vec3,
     pub intensity: f64,
+    c_1: f64,
+    c_2: f64,
+    c_3: f64,
+}
+
+impl Light {
+    pub fn get_attenuation(&self, distance: f64) -> f64 {
+        (1.0_f64 / (self.c_1 + self.c_2 * distance + self.c_3 * distance * distance)).min(1.0)
+    }
+
+    pub fn get_l_vec(&self, intersection: Vec3) -> Vec3 {
+        (self.position - intersection).normalize()
+    }
 }
 
 /// Represents the camera + the projection plane used for the raytracer.
@@ -123,13 +167,7 @@ fn get_float_fails(config: &Ini, section: &str, key: &str) -> Result<f64> {
     Ok(config
         .getfloat(section, key)
         .map_err(|s| anyhow!(s))?
-        .ok_or_else(|| {
-            anyhow!(
-                "Missing attribute '{}' for {} in observer config file",
-                key,
-                section
-            )
-        })?)
+        .ok_or_else(|| anyhow!("Missing attribute '{}' for {} in config file", key, section))?)
 }
 
 fn get_color_fails(config: &Ini, section: &str) -> Result<Color> {

@@ -25,6 +25,12 @@ impl Ray {
     }
 }
 
+impl Ray {
+    pub fn point_at_t(&self, t: f64) -> Vec3 {
+        self.anchor + self.dir * t
+    }
+}
+
 pub fn raytrace<P: AsRef<Path>>(
     path: P,
     observer: &Observer,
@@ -62,28 +68,51 @@ pub fn raytrace<P: AsRef<Path>>(
 }
 
 fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
-    if let Some(obj) = get_first_intersection(ray, scene) {
-        obj.get_color()
+    if let Some(inter) = get_first_intersection(ray, scene) {
+        let normal = inter.object.get_normal_vec(inter.point);
+
+        let intensity = (scene
+            .get_lights()
+            .iter()
+            .map(|light| {
+                (light.get_l_vec(inter.point).dot(normal)).max(0.0)
+                    * light.intensity
+                    * light.get_attenuation((light.position - inter.point).norm())
+            })
+            .sum::<f64>()
+            * inter.object.k_d()
+            + (scene.ambient * inter.object.k_a()))
+        .min(1.0);
+
+        intensity as f32 * inter.object.get_color()
     } else {
         BACKGROUND_COLOR
     }
 }
 
-fn get_first_intersection(ray: Ray, scene: &Scene) -> Option<&Shape> {
+struct Intersection<'a> {
+    t: f64,
+    object: &'a Shape,
+    point: Vec3,
+}
+
+fn get_first_intersection(ray: Ray, scene: &Scene) -> Option<Intersection> {
     // Init tmin and the intersected shape
     let mut tmin = f64::INFINITY;
-    let mut shape: Option<&Shape> = None;
-
-    //println!("Finding intersection for ray:\n{:?}", ray);
+    let mut intersection: Option<Intersection> = None;
 
     for object in scene.get_objects() {
         if let Some(t) = object.get_intersection(&ray) {
             if t < tmin {
                 tmin = t;
-                shape = Some(&object)
+                intersection = Some(Intersection {
+                    t: tmin,
+                    object: &object,
+                    point: ray.point_at_t(tmin),
+                });
             }
         }
     }
 
-    shape
+    intersection
 }

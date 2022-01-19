@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use enum_dispatch::enum_dispatch;
+use std::ops;
 
 use crate::raytracer::Ray;
 use crate::vec3::Vec3;
@@ -44,6 +45,28 @@ impl Color {
     }
 }
 
+impl ops::Mul<f32> for Color {
+    type Output = Color;
+    fn mul(self, other: f32) -> Self::Output {
+        Color {
+            r: self.r.mul(other),
+            g: self.g.mul(other),
+            b: self.b.mul(other),
+        }
+    }
+}
+
+impl ops::Mul<Color> for f32 {
+    type Output = Color;
+    fn mul(self, other: Color) -> Self::Output {
+        Color {
+            r: other.r.mul(self),
+            g: other.g.mul(self),
+            b: other.b.mul(self),
+        }
+    }
+}
+
 fn is_hex_format(hex: &str) -> bool {
     hex.starts_with('#') && hex.len() == 7 && hex[1..].chars().all(|d| d.is_digit(16))
 }
@@ -54,15 +77,19 @@ pub struct Sphere {
     r: f64,
     color: Color,
     gamma: Option<f64>,
+    k_a: f64,
+    k_d: f64,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, r: f64, color: Color) -> Sphere {
+    pub fn new(center: Vec3, r: f64, color: Color, k_a: f64, k_d: f64) -> Sphere {
         Sphere {
             center,
             r,
             color,
             gamma: None,
+            k_a,
+            k_d,
         }
     }
 }
@@ -97,8 +124,19 @@ impl ShapeCalculations for Sphere {
         }
     }
 
+    fn get_normal_vec(&self, intersection: Vec3) -> Vec3 {
+        (intersection - self.center) / self.r
+    }
+
     fn get_color(&self) -> Color {
         self.color
+    }
+
+    fn k_a(&self) -> f64 {
+        self.k_a
+    }
+    fn k_d(&self) -> f64 {
+        self.k_d
     }
 
     fn prepare(&mut self, camera: Vec3) {
@@ -116,7 +154,12 @@ pub trait ShapeCalculations {
     /// Returns the distance "t" from the camera to the point
     fn get_intersection(&self, ray: &Ray) -> Option<f64>;
 
+    fn get_normal_vec(&self, point: Vec3) -> Vec3;
+
     fn get_color(&self) -> Color;
+
+    fn k_a(&self) -> f64;
+    fn k_d(&self) -> f64;
 
     fn prepare(&mut self, camera: Vec3);
 }
