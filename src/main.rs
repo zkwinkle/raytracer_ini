@@ -8,7 +8,7 @@ use anyhow::Result;
 use sdl_wrapper::ScreenContextManager;
 
 use clap::Parser;
-use constants::{DEFAULT_OBSERVER, DEFAULT_RES, DEFAULT_SCENE};
+use constants::{DEFAULT_IMAGE, DEFAULT_OBSERVER, DEFAULT_RES, DEFAULT_SCENE};
 use raytracer::raytrace;
 use scene::{Observer, Scene};
 
@@ -43,6 +43,10 @@ struct Args {
     scene: String,
 
     /// Path to observer's config file
-    #[clap(short, long, default_value = DEFAULT_OBSERVER)]
+    #[clap(short='O', long, default_value = DEFAULT_OBSERVER)]
     observer: String,
+
+    /// Path to image output (image format is determined by file extension)
+    #[clap(short='o', long, default_value = DEFAULT_IMAGE)]
+    image: String,
 }

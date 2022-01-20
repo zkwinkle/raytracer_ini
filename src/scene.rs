@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use configparser::ini::Ini;
 use std::path::Path;
 
+use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_LIGHT_COLOR};
 use crate::shapes::{Color, Shape, Sphere};
 use crate::vec3::Vec3;
 
@@ -9,6 +10,7 @@ pub struct Scene {
     objects: Vec<Shape>,
     lights: Vec<Light>,
     pub ambient: f64,
+    pub bg_color: Color,
 }
 
 impl Scene {
@@ -29,6 +31,7 @@ impl Scene {
         //println!("Map: {:?}", map);
 
         let ambient = get_float_fails(&config, "scene", "I_a")?;
+        let bg_color = get_color_default(&config, "scene", "bg_color", DEFAULT_BG_COLOR)?;
 
         // spheres (checks for prefix)
         for sphere_section in config
@@ -72,12 +75,15 @@ impl Scene {
             let c_3 = get_float_fails(&config, light_section, "c_3")
                 .or_else(|_| get_float_fails(&config, light_section, "C3"))?;
 
+            let color = get_color_default(&config, light_section, "color", DEFAULT_LIGHT_COLOR)?;
+
             lights.push(Light {
                 position,
                 intensity,
                 c_1,
                 c_2,
                 c_3,
+                color,
             })
         }
 
@@ -85,6 +91,7 @@ impl Scene {
             objects,
             lights,
             ambient,
+            bg_color,
         })
     }
 }
@@ -95,6 +102,7 @@ pub struct Light {
     c_1: f64,
     c_2: f64,
     c_3: f64,
+    pub color: Color,
 }
 
 impl Light {
@@ -172,4 +180,8 @@ fn get_color_fails(config: &Ini, section: &str) -> Result<Color> {
             section
         )
     })?)
+}
+
+fn get_color_default(config: &Ini, section: &str, key: &str, default: &str) -> Result<Color> {
+    Color::from_hex(config.get(section, key).as_deref().unwrap_or(default))
 }

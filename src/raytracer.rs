@@ -2,7 +2,7 @@ use anyhow::Result;
 use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
-use crate::constants::{BACKGROUND_COLOR, SHADOWS, TOLERANCE};
+use crate::constants::{SHADOWS, TOLERANCE};
 use crate::scene::{Light, Observer, Scene};
 use crate::shapes::{Color, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
@@ -95,9 +95,10 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
             + (scene.ambient * inter.object.k_a()))
         .min(1.0);
 
-        intensity as f32 * inter.object.get_color()
+        let rgb_d = intensity as f32 * inter.object.get_color();
+        rgb_d
     } else {
-        BACKGROUND_COLOR
+        scene.bg_color
     }
 }
 
