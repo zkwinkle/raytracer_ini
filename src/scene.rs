@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use configparser::ini::Ini;
 use std::path::Path;
 
-use crate::shapes::{Color, Shape, ShapeCalculations, Sphere};
+use crate::shapes::{Color, Shape, Sphere};
 use crate::vec3::Vec3;
 
 pub struct Scene {

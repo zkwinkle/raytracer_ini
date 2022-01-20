@@ -1,7 +1,8 @@
 [package]
-name = "proyecto2"
+name = "raytracer_ini"
 version = "0.1.0"
 edition = "2021"
+authors = ["Ignacio Vargas <ignaevc@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,3 +11,4 @@ sdl_wrapper = { git = "https://github.com/zkwinkle/sdl_wrapper" , tag = "v0.3.0"
 anyhow = { version = "1.0", features = ["backtrace"] }
 configparser = "3.0"
 enum_dispatch = "0.3.7"
+clap = { version = "3.0.10", features = ["derive"] }

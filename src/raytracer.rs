@@ -102,7 +102,7 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
 }
 
 struct Intersection<'a> {
-    t: f64,
+    //t: f64,
     object: &'a Shape,
     point: Vec3,
 }
@@ -117,7 +117,7 @@ fn get_first_intersection<'a>(ray: &Ray, scene: &'a Scene) -> Option<Intersectio
             if t < tmin {
                 tmin = t;
                 intersection = Some(Intersection {
-                    t: tmin,
+                    //t: tmin,
                     object: &object,
                     point: ray.point_at_t(tmin),
                 });
@@ -139,12 +139,10 @@ fn get_shadow_intersection<'a>(
 
     for object in scene.get_objects() {
         if let Some(t) = object.get_intersection(&ray) {
-            println!("Object for which shadow happened: {:?}", object);
-            println!("Shadow for ray: {:?}\nat t: {}\n", ray, t);
             if t < t_light && t > TOLERANCE {
                 // revisamos t > TOLERANCE para que el objeto no se auto-detecte como intersección
                 intersection = Some(Intersection {
-                    t,
+                    //t,
                     object: &object,
                     point: ray.point_at_t(t),
                 });
