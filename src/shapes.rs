@@ -1,30 +1,31 @@
 use anyhow::{anyhow, Result};
 use enum_dispatch::enum_dispatch;
+use std::iter::Sum;
 use std::ops;
 
 use crate::raytracer::Ray;
 use crate::vec3::Vec3;
 
-//pub mod colors {
-//    use super::Color;
-//
-//    pub const WHITE: Color = Color {
-//        r: 1.0,
-//        b: 1.0,
-//        g: 1.0,
-//    };
-//    pub const BLACK: Color = Color {
-//        r: 0.0,
-//        b: 0.0,
-//        g: 0.0,
-//    };
-//}
+pub mod colors {
+    use super::Color;
+
+    pub const WHITE: Color = Color {
+        r: 1.0,
+        b: 1.0,
+        g: 1.0,
+    };
+    pub const BLACK: Color = Color {
+        r: 0.0,
+        b: 0.0,
+        g: 0.0,
+    };
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
+    pub r: f64,
+    pub g: f64,
+    pub b: f64,
 }
 
 fn check_ranges<N: PartialOrd + ToString>(values: Vec<N>, min: N, max: N) -> Result<()> {
@@ -39,7 +40,7 @@ fn check_ranges<N: PartialOrd + ToString>(values: Vec<N>, min: N, max: N) -> Res
 }
 
 impl Color {
-    pub fn new(r: f32, g: f32, b: f32) -> Result<Color> {
+    pub fn new(r: f64, g: f64, b: f64) -> Result<Color> {
         check_ranges(vec![r, g, b], 0.0, 1.0)?;
         Ok(Color { r, g, b })
     }
@@ -47,9 +48,9 @@ impl Color {
     pub fn from_hex(hex: &str) -> Result<Color> {
         if is_hex_format(hex) {
             Ok(Color::new(
-                u8::from_str_radix(&hex[1..=2], 16)? as f32 / 255.0,
-                u8::from_str_radix(&hex[3..=4], 16)? as f32 / 255.0,
-                u8::from_str_radix(&hex[5..=6], 16)? as f32 / 255.0,
+                u8::from_str_radix(&hex[1..=2], 16)? as f64 / 255.0,
+                u8::from_str_radix(&hex[3..=4], 16)? as f64 / 255.0,
+                u8::from_str_radix(&hex[5..=6], 16)? as f64 / 255.0,
             )?)
         } else {
             Err(anyhow!(
@@ -58,11 +59,19 @@ impl Color {
             ))
         }
     }
+
+    pub fn min(self, min_val: f64) -> Color {
+        Self {
+            r: self.r.min(min_val),
+            g: self.g.min(min_val),
+            b: self.b.min(min_val),
+        }
+    }
 }
 
-impl ops::Mul<f32> for Color {
+impl ops::Mul<f64> for Color {
     type Output = Color;
-    fn mul(self, other: f32) -> Self::Output {
+    fn mul(self, other: f64) -> Self::Output {
         Color {
             r: self.r.mul(other),
             g: self.g.mul(other),
@@ -71,7 +80,7 @@ impl ops::Mul<f32> for Color {
     }
 }
 
-impl ops::Mul<Color> for f32 {
+impl ops::Mul<Color> for f64 {
     type Output = Color;
     fn mul(self, other: Color) -> Self::Output {
         Color {
@@ -79,6 +88,42 @@ impl ops::Mul<Color> for f32 {
             g: other.g.mul(self),
             b: other.b.mul(self),
         }
+    }
+}
+
+impl ops::Mul<Color> for Color {
+    type Output = Color;
+    fn mul(self, other: Color) -> Self::Output {
+        Color {
+            r: self.r.mul(other.r),
+            g: self.g.mul(other.g),
+            b: self.b.mul(other.b),
+        }
+    }
+}
+
+impl ops::Add for Color {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        Self {
+            r: (self.r.add(other.r)).min(1.0),
+            g: (self.g.add(other.g)).min(1.0),
+            b: (self.b.add(other.b)).min(1.0),
+        }
+    }
+}
+
+impl Sum<Self> for Color {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = Self>,
+    {
+        iter.fold(colors::BLACK, |acc, c| Self {
+            r: acc.r + c.r,
+            g: acc.g + c.g,
+            b: acc.b + c.b,
+        })
     }
 }
 

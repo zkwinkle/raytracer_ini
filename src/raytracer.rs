@@ -4,7 +4,10 @@ use std::path::Path;
 
 use crate::constants::{SHADOWS, TOLERANCE};
 use crate::scene::{Light, Observer, Scene};
-use crate::shapes::{Color, Shape, ShapeCalculations};
+use crate::shapes::{
+    colors::{BLACK, WHITE},
+    Color, Shape, ShapeCalculations,
+};
 use crate::vec3::Vec3;
 
 #[derive(Debug)]
@@ -56,7 +59,7 @@ pub fn raytrace<P: AsRef<Path>>(
             let color = get_color_pixel(ray, scene);
 
             // Paint
-            screen.set_color(color.r, color.g, color.b);
+            screen.set_color(color.r as f32, color.g as f32, color.b as f32);
             screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
             screen.present()?;
         }
@@ -83,20 +86,20 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
                     )
                     .is_none()
                 {
-                    (light.get_l_vec(inter.point).dot(normal)).max(0.0)
+                    let intensity = (light.get_l_vec(inter.point).dot(normal)).max(0.0)
                         * light.intensity
-                        * light.get_attenuation((light.position - inter.point).norm())
+                        * light.get_attenuation((light.position - inter.point).norm());
+                    light.color * intensity
                 } else {
-                    0.0
+                    BLACK
                 }
-            })
-            .sum::<f64>()
+            }) //.fold(BLACK, |acc_color, light_color| acc_color + light_color )
+            .sum::<Color>()
             * inter.object.k_d()
-            + (scene.ambient * inter.object.k_a()))
+            + (WHITE * scene.ambient * inter.object.k_a()))
         .min(1.0);
 
-        let rgb_d = intensity as f32 * inter.object.get_color();
-        rgb_d
+        intensity * inter.object.get_color()
     } else {
         scene.bg_color
     }
