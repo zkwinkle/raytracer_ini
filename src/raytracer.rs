@@ -2,8 +2,8 @@ use anyhow::Result;
 use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
-use crate::constants::BACKGROUND_COLOR;
-use crate::scene::{Observer, Scene};
+use crate::constants::{BACKGROUND_COLOR, SHADOWS, TOLERANCE};
+use crate::scene::{Light, Observer, Scene};
 use crate::shapes::{Color, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
 
@@ -68,16 +68,27 @@ pub fn raytrace<P: AsRef<Path>>(
 }
 
 fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
-    if let Some(inter) = get_first_intersection(ray, scene) {
+    if let Some(inter) = get_first_intersection(&ray, scene) {
         let normal = inter.object.get_normal_vec(inter.point);
 
         let intensity = (scene
             .get_lights()
             .iter()
             .map(|light| {
-                (light.get_l_vec(inter.point).dot(normal)).max(0.0)
-                    * light.intensity
-                    * light.get_attenuation((light.position - inter.point).norm())
+                if !SHADOWS
+                    || get_shadow_intersection(
+                        &Ray::from_2_points(inter.point, light.position),
+                        scene,
+                        light,
+                    )
+                    .is_none()
+                {
+                    (light.get_l_vec(inter.point).dot(normal)).max(0.0)
+                        * light.intensity
+                        * light.get_attenuation((light.position - inter.point).norm())
+                } else {
+                    0.0
+                }
             })
             .sum::<f64>()
             * inter.object.k_d()
@@ -96,7 +107,7 @@ struct Intersection<'a> {
     point: Vec3,
 }
 
-fn get_first_intersection(ray: Ray, scene: &Scene) -> Option<Intersection> {
+fn get_first_intersection<'a>(ray: &Ray, scene: &'a Scene) -> Option<Intersection<'a>> {
     // Init tmin and the intersected shape
     let mut tmin = f64::INFINITY;
     let mut intersection: Option<Intersection> = None;
@@ -110,6 +121,34 @@ fn get_first_intersection(ray: Ray, scene: &Scene) -> Option<Intersection> {
                     object: &object,
                     point: ray.point_at_t(tmin),
                 });
+            }
+        }
+    }
+
+    intersection
+}
+
+fn get_shadow_intersection<'a>(
+    ray: &Ray,
+    scene: &'a Scene,
+    light: &Light,
+) -> Option<Intersection<'a>> {
+    let t_light: f64 = (light.position - ray.anchor).norm();
+
+    let mut intersection: Option<Intersection> = None;
+
+    for object in scene.get_objects() {
+        if let Some(t) = object.get_intersection(&ray) {
+            println!("Object for which shadow happened: {:?}", object);
+            println!("Shadow for ray: {:?}\nat t: {}\n", ray, t);
+            if t < t_light && t > TOLERANCE {
+                // revisamos t > TOLERANCE para que el objeto no se auto-detecte como intersección
+                intersection = Some(Intersection {
+                    t,
+                    object: &object,
+                    point: ray.point_at_t(t),
+                });
+                return intersection;
             }
         }
     }

@@ -19,13 +19,6 @@ impl Scene {
         &self.lights
     }
 
-    pub fn prepare(mut self, camera: Vec3) -> Self {
-        for shape in &mut self.objects {
-            shape.prepare(camera);
-        }
-        self
-    }
-
     pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Scene> {
         let mut config = Ini::new();
         let mut objects = Vec::<Shape>::new();

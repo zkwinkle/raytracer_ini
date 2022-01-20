@@ -5,7 +5,7 @@ use std::ops;
 use crate::raytracer::Ray;
 use crate::vec3::Vec3;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -71,12 +71,11 @@ fn is_hex_format(hex: &str) -> bool {
     hex.starts_with('#') && hex.len() == 7 && hex[1..].chars().all(|d| d.is_digit(16))
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Sphere {
     center: Vec3,
     r: f64,
     color: Color,
-    gamma: Option<f64>,
     k_a: f64,
     k_d: f64,
 }
@@ -87,7 +86,6 @@ impl Sphere {
             center,
             r,
             color,
-            gamma: None,
             k_a,
             k_d,
         }
@@ -106,7 +104,12 @@ impl ShapeCalculations for Sphere {
                 + dir.y * (anchor.y - center.y)
                 + dir.z * (anchor.z - center.z));
 
-        let determinant = (b * b - 4.0 * self.gamma.expect("Make sure to call the prepare() function after adding in all the objects to the scene")).sqrt();
+        let c = (anchor.x - center.x).powi(2)
+            + (anchor.y - center.y).powi(2)
+            + (anchor.z - center.z).powi(2)
+            - (self.r * self.r);
+
+        let determinant = (b * b - 4.0 * c).sqrt();
 
         if determinant.is_nan() {
             None
@@ -118,7 +121,8 @@ impl ShapeCalculations for Sphere {
             } else if t2 < 0.0 {
                 None
             } else {
-                panic!("No está implementado el caso de la cámara dentro de una esfera");
+                Some(t2)
+                // panic!("No está implementado el caso de la cámara dentro de una esfera");
                 // Normalmente se retornaría t2
             }
         }
@@ -138,15 +142,6 @@ impl ShapeCalculations for Sphere {
     fn k_d(&self) -> f64 {
         self.k_d
     }
-
-    fn prepare(&mut self, camera: Vec3) {
-        self.gamma = Some(
-            (camera.x - self.center.x).powi(2)
-                + (camera.y - self.center.y).powi(2)
-                + (camera.z - self.center.z).powi(2)
-                - (self.r * self.r),
-        );
-    }
 }
 
 #[enum_dispatch]
@@ -160,12 +155,10 @@ pub trait ShapeCalculations {
 
     fn k_a(&self) -> f64;
     fn k_d(&self) -> f64;
-
-    fn prepare(&mut self, camera: Vec3);
 }
 
 #[enum_dispatch(ShapeCalculations)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Shape {
     Sphere,
 }
