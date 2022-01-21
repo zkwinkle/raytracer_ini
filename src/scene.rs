@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use configparser::ini::Ini;
 use std::path::Path;
 
-use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_LIGHT_COLOR};
+use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_HARDNESS, DEFAULT_LIGHT_COLOR};
 use crate::shapes::{Color, Shape, Sphere};
 use crate::vec3::Vec3;
 
@@ -11,6 +11,7 @@ pub struct Scene {
     lights: Vec<Light>,
     pub ambient: f64,
     pub bg_color: Color,
+    pub ambient_color: Color,
 }
 
 impl Scene {
@@ -32,6 +33,8 @@ impl Scene {
 
         let ambient = get_float_fails(&config, "scene", "I_a")?;
         let bg_color = get_color_default(&config, "scene", "bg_color", DEFAULT_BG_COLOR)?;
+        let ambient_color =
+            get_color_default(&config, "scene", "ambient_color", DEFAULT_LIGHT_COLOR)?;
 
         // spheres (checks for prefix)
         for sphere_section in config
@@ -48,10 +51,14 @@ impl Scene {
                 .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
 
             let color = get_color_fails(&config, sphere_section)?;
-            let k_a = get_float_default(&config, sphere_section, "k_a", 1.0)?;
             let k_d = get_float_fails(&config, sphere_section, "k_d")?;
+            let k_a = get_float_default(&config, sphere_section, "k_a", 1.0)?;
+            let k_s = get_float_fails(&config, sphere_section, "k_s")?;
+            let k_n = get_float_default(&config, sphere_section, "k_n", DEFAULT_HARDNESS)?;
 
-            objects.push(Shape::Sphere(Sphere::new(center, radius, color, k_a, k_d)));
+            objects.push(Shape::Sphere(Sphere::new(
+                center, radius, color, k_a, k_d, k_n, k_s,
+            )));
         }
 
         // lights
@@ -92,6 +99,7 @@ impl Scene {
             lights,
             ambient,
             bg_color,
+            ambient_color,
         })
     }
 }

@@ -3,7 +3,10 @@ pub const TOLERANCE: f64 = 0.001;
 
 /// Default color of scene's background
 pub const DEFAULT_BG_COLOR: &str = "#3D1A28";
-pub const DEFAULT_LIGHT_COLOR: &str = "#3D1A28";
+pub const DEFAULT_LIGHT_COLOR: &str = "#FFFFFF";
+
+/// Default values for parameters
+pub const DEFAULT_HARDNESS: f64 = 10.0;
 
 pub const SHADOWS: bool = true;
 

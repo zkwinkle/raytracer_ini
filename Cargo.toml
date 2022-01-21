@@ -12,3 +12,4 @@ anyhow = { version = "1.0", features = ["backtrace"] }
 configparser = "3.0"
 enum_dispatch = "0.3.7"
 clap = { version = "3.0.10", features = ["derive"] }
+itertools = "0.10.3"

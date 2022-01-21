@@ -26,7 +26,7 @@ fn main() -> Result<()> {
         ScreenContextManager::new("Ray Tracing Challenge", args.resolution, args.resolution)?;
 
     // raytrace :)
-    raytrace("images/specular.png", &observer, &scene, &mut screen)?;
+    raytrace(args.image, &observer, &scene, &mut screen)?;
 
     Ok(())
 }

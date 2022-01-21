@@ -6,6 +6,7 @@ use std::ops;
 use crate::raytracer::Ray;
 use crate::vec3::Vec3;
 
+#[allow(dead_code)]
 pub mod colors {
     use super::Color;
 
@@ -91,39 +92,31 @@ impl ops::Mul<Color> for f64 {
     }
 }
 
-impl ops::Mul<Color> for Color {
-    type Output = Color;
-    fn mul(self, other: Color) -> Self::Output {
-        Color {
-            r: self.r.mul(other.r),
-            g: self.g.mul(other.g),
-            b: self.b.mul(other.b),
+macro_rules! color_op_vec {
+    ($($path:ident)::+, $fn:ident) => {
+        impl $($path)::+ for Color {
+            type Output = Self;
+            fn $fn(self, other: Self) -> Self::Output {
+                Color {
+                    r: self.r.$fn(other.r).clamp(0.0, 1.0),
+                    g: self.g.$fn(other.g).clamp(0.0, 1.0),
+                    b: self.b.$fn(other.b).clamp(0.0, 1.0),
+                }
+            }
         }
-    }
+    };
 }
 
-impl ops::Add for Color {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self::Output {
-        Self {
-            r: (self.r.add(other.r)).min(1.0),
-            g: (self.g.add(other.g)).min(1.0),
-            b: (self.b.add(other.b)).min(1.0),
-        }
-    }
-}
+color_op_vec!(ops::Add, add);
+color_op_vec!(ops::Sub, sub);
+color_op_vec!(ops::Mul, mul);
 
 impl Sum<Self> for Color {
     fn sum<I>(iter: I) -> Self
     where
         I: Iterator<Item = Self>,
     {
-        iter.fold(colors::BLACK, |acc, c| Self {
-            r: acc.r + c.r,
-            g: acc.g + c.g,
-            b: acc.b + c.b,
-        })
+        iter.fold(colors::BLACK, |acc, c| acc + c)
     }
 }
 
@@ -138,16 +131,28 @@ pub struct Sphere {
     color: Color,
     k_a: f64,
     k_d: f64,
+    k_n: f64,
+    k_s: f64,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, r: f64, color: Color, k_a: f64, k_d: f64) -> Sphere {
+    pub fn new(
+        center: Vec3,
+        r: f64,
+        color: Color,
+        k_a: f64,
+        k_d: f64,
+        k_n: f64,
+        k_s: f64,
+    ) -> Sphere {
         Sphere {
             center,
             r,
             color,
             k_a,
             k_d,
+            k_n,
+            k_s,
         }
     }
 }
@@ -202,6 +207,12 @@ impl ShapeCalculations for Sphere {
     fn k_d(&self) -> f64 {
         self.k_d
     }
+    fn k_n(&self) -> f64 {
+        self.k_n
+    }
+    fn k_s(&self) -> f64 {
+        self.k_s
+    }
 }
 
 #[enum_dispatch]
@@ -215,6 +226,8 @@ pub trait ShapeCalculations {
 
     fn k_a(&self) -> f64;
     fn k_d(&self) -> f64;
+    fn k_n(&self) -> f64;
+    fn k_s(&self) -> f64;
 }
 
 #[enum_dispatch(ShapeCalculations)]

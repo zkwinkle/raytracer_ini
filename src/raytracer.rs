@@ -1,13 +1,11 @@
 use anyhow::Result;
+use itertools::multiunzip;
 use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
 use crate::constants::{SHADOWS, TOLERANCE};
 use crate::scene::{Light, Observer, Scene};
-use crate::shapes::{
-    colors::{BLACK, WHITE},
-    Color, Shape, ShapeCalculations,
-};
+use crate::shapes::{colors::BLACK, Color, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
 
 #[derive(Debug)]
@@ -73,11 +71,53 @@ pub fn raytrace<P: AsRef<Path>>(
 fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
     if let Some(inter) = get_first_intersection(&ray, scene) {
         let normal = inter.object.get_normal_vec(inter.point);
+        let backwards_vec = -1.0 * ray.dir;
 
-        let intensity = (scene
+        // Calculate stuff relating to each specific light that has to be reused, for optimization
+        // purposes
+        let (shadow_intersections, light_factors, l_vecs): (
+            Vec<Option<Intersection>>,
+            Vec<f64>,
+            Vec<Vec3>,
+        ) = multiunzip(scene.get_lights().iter().map(|light| {
+            (
+                get_shadow_intersection(
+                    &Ray::from_2_points(inter.point, light.position),
+                    scene,
+                    light,
+                ),
+                // F_att * Ip
+                light.get_attenuation((light.position - inter.point).norm()) * light.intensity,
+                // L vectors
+                light.get_l_vec(inter.point),
+            )
+        }));
+
+        let total_intensity = (scene
             .get_lights()
             .iter()
-            .map(|light| {
+            .enumerate()
+            .map(|(i, light)| {
+                if !SHADOWS || shadow_intersections[i].is_none() {
+                    let intensity: f64 =
+                        (l_vecs[i].dot(normal)).max(0.0) * light_factors[i] * inter.object.k_d();
+
+                    light.color * intensity
+                } else {
+                    BLACK
+                }
+            })
+            .sum::<Color>()
+            + (scene.ambient_color * scene.ambient * inter.object.k_a()))
+        .min(1.0);
+
+        let rgb_d = total_intensity * inter.object.get_color();
+
+        let total_speculation = (scene
+            .get_lights()
+            .iter()
+            .enumerate()
+            .map(|(i, light)| {
                 if !SHADOWS
                     || get_shadow_intersection(
                         &Ray::from_2_points(inter.point, light.position),
@@ -86,20 +126,23 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
                     )
                     .is_none()
                 {
-                    let intensity = (light.get_l_vec(inter.point).dot(normal)).max(0.0)
-                        * light.intensity
-                        * light.get_attenuation((light.position - inter.point).norm());
-                    light.color * intensity
+                    let reflection_vec: Vec3 = 2.0 * normal * (normal.dot(l_vecs[i])) - l_vecs[i];
+
+                    let specular: f64 = (reflection_vec.dot(backwards_vec))
+                        .max(0.0)
+                        .powf(inter.object.k_n())
+                        * light_factors[i]
+                        * inter.object.k_s();
+
+                    (light.color - rgb_d) * specular
                 } else {
                     BLACK
                 }
-            }) //.fold(BLACK, |acc_color, light_color| acc_color + light_color )
-            .sum::<Color>()
-            * inter.object.k_d()
-            + (WHITE * scene.ambient * inter.object.k_a()))
+            })
+            .sum::<Color>())
         .min(1.0);
 
-        intensity * inter.object.get_color()
+        rgb_d + total_speculation
     } else {
         scene.bg_color
     }
