@@ -54,26 +54,45 @@ pub fn raytrace<P: AsRef<Path>>(
             let ray = Ray::from_2_points(observer.camera, target);
 
             // Get color
-            let color = get_color_pixel(ray, scene);
+            let color = get_color_pixel(ray, scene, i == 600 && j == 450);
 
             // Paint
             screen.set_color(color.r as f32, color.g as f32, color.b as f32);
             screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
         }
-        if i % 1 == 0 {
+        if i % 20 == 0 {
             screen.present()?;
         }
     }
 
     screen.save_img(path)?;
 
+    unsafe {
+        println!(
+            "intersections: {}\nblack inters: {}\n biggest values:\n\tR: {}\tG: {}\tB: {}",
+            INTERSECTIONS, BLACK_INTERSECTIONS, BIGGEST_R, BIGGEST_G, BIGGEST_B
+        )
+    };
+
     Ok(())
 }
 
-fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
+static mut INTERSECTIONS: u32 = 0;
+static mut BLACK_INTERSECTIONS: u32 = 0;
+static mut BIGGEST_R: f64 = 0.0;
+static mut BIGGEST_G: f64 = 0.0;
+static mut BIGGEST_B: f64 = 0.0;
+
+fn get_color_pixel(ray: Ray, scene: &Scene, flag: bool) -> Color {
     if let Some(inter) = get_first_intersection(&ray, scene) {
+        unsafe { INTERSECTIONS += 1 };
         let normal = inter.object.get_normal_vec(inter.point);
         let backwards_vec = -1.0 * ray.dir;
+
+        if flag {
+            println!("Pixel (600, 450):");
+            println!("\tt: {}\n\tVector dirección: {:?}", inter.t, ray.dir);
+        }
 
         // Calculate stuff relating to each specific light that has to be reused, for optimization
         // purposes
@@ -129,6 +148,9 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
                     .is_none()
                 {
                     let reflection_vec: Vec3 = 2.0 * normal * (normal.dot(l_vecs[i])) - l_vecs[i];
+                    if flag {
+                        println!("\tR: {:?}", reflection_vec);
+                    }
 
                     let specular: f64 = (reflection_vec.dot(backwards_vec))
                         .max(0.0)
@@ -144,14 +166,41 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
             .sum::<Color>())
         .min(1.0);
 
-        rgb_d + total_speculation
+        let final_c = rgb_d + total_speculation;
+
+        if flag {
+            println!(
+                "\tDifusa: {:?}\n\tSolo difusa: {:?}\n\tEspecular: {:?}\n\tSolo especular: {:?}\n\tTotal: {:?}\n",
+                total_intensity,
+                rgb_d,
+                total_speculation,
+                inter.object.get_color() + total_speculation,
+                final_c
+            );
+        }
+
+        if final_c.r == 0.0 && final_c.g == 0.0 && final_c.b == 0.0 {
+            unsafe { BLACK_INTERSECTIONS += 1 };
+        }
+
+        unsafe {
+            BIGGEST_R = final_c.r.max(BIGGEST_R);
+            BIGGEST_G = final_c.g.max(BIGGEST_G);
+            BIGGEST_B = final_c.b.max(BIGGEST_B);
+        }
+
+        if flag {
+            Color::new(1.0, 0.0, 0.0).unwrap()
+        } else {
+            final_c
+        }
     } else {
         scene.bg_color
     }
 }
 
 struct Intersection<'a> {
-    //t: f64,
+    t: f64,
     object: &'a Shape,
     point: Vec3,
 }
@@ -166,7 +215,7 @@ fn get_first_intersection<'a>(ray: &Ray, scene: &'a Scene) -> Option<Intersectio
             if t < tmin {
                 tmin = t;
                 intersection = Some(Intersection {
-                    //t: tmin,
+                    t: tmin,
                     object: &object,
                     point: ray.point_at_t(tmin),
                 });
@@ -191,7 +240,7 @@ fn get_shadow_intersection<'a>(
             if t < t_light && t > TOLERANCE {
                 // revisamos t > TOLERANCE para que el objeto no se auto-detecte como intersección
                 intersection = Some(Intersection {
-                    //t,
+                    t,
                     object: &object,
                     point: ray.point_at_t(t),
                 });
