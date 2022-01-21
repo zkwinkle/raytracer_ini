@@ -59,6 +59,8 @@ pub fn raytrace<P: AsRef<Path>>(
             // Paint
             screen.set_color(color.r as f32, color.g as f32, color.b as f32);
             screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
+        }
+        if i % 1 == 0 {
             screen.present()?;
         }
     }

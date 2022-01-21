@@ -11,6 +11,7 @@ use clap::Parser;
 use constants::{DEFAULT_IMAGE, DEFAULT_OBSERVER, DEFAULT_RES, DEFAULT_SCENE};
 use raytracer::raytrace;
 use scene::{Observer, Scene};
+use std::{thread::sleep, time::Duration};
 
 fn main() -> Result<()> {
     // Parse args
@@ -27,6 +28,8 @@ fn main() -> Result<()> {
 
     // raytrace :)
     raytrace(args.image, &observer, &scene, &mut screen)?;
+
+    sleep(Duration::from_millis(100));
 
     Ok(())
 }
