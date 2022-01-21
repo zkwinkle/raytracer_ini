@@ -3,6 +3,7 @@ use enum_dispatch::enum_dispatch;
 use std::iter::Sum;
 use std::ops;
 
+use crate::constants::TOLERANCE;
 use crate::raytracer::Ray;
 use crate::vec3::Vec3;
 
@@ -125,40 +126,76 @@ fn is_hex_format(hex: &str) -> bool {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Sphere {
-    center: Vec3,
-    r: f64,
-    color: Color,
-    k_a: f64,
-    k_d: f64,
-    k_n: f64,
-    k_s: f64,
+pub struct ObjectParameters {
+    pub color: Color,
+    pub k_a: f64,
+    pub k_d: f64,
+    pub k_n: f64,
+    pub k_s: f64,
 }
 
-impl Sphere {
-    pub fn new(
-        center: Vec3,
-        r: f64,
-        color: Color,
-        k_a: f64,
-        k_d: f64,
-        k_n: f64,
-        k_s: f64,
-    ) -> Sphere {
-        Sphere {
-            center,
-            r,
-            color,
-            k_a,
-            k_d,
-            k_n,
-            k_s,
+#[derive(Copy, Clone, Debug)]
+pub struct Plane {
+    normal: Vec3,
+    anchor: Vec3,
+    params: ObjectParameters,
+}
+
+impl Plane {
+    pub fn new(normal: Vec3, point: Vec3, params: ObjectParameters) -> Plane {
+        //let d = -1.0 * (normal.x * point.x + normal.y * point.y + normal.z * point.z);
+        //let d = d / normal.norm();
+        Plane {
+            anchor: point,
+            normal: normal.normalize(),
+            params,
         }
     }
 }
 
+impl ShapeCalculations for Plane {
+    /// Returns the distance "t" from the camera to the point
+    fn get_intersection(&self, ray: &Ray) -> Option<f64> {
+        let normal = self.normal;
+        let denominator = normal.dot(ray.dir);
+
+        if denominator < TOLERANCE {
+            None
+        } else {
+            let t = (self.anchor - ray.anchor).dot(normal) / denominator;
+            // Check it's in front of camera
+            if t > 0.0 {
+                Some(t)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn get_normal_vec(&self, _: Vec3) -> Vec3 {
+        self.normal
+    }
+
+    fn get_params(&self) -> ObjectParameters {
+        self.params
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Sphere {
+    center: Vec3,
+    r: f64,
+    params: ObjectParameters,
+}
+
+impl Sphere {
+    pub fn new(center: Vec3, r: f64, params: ObjectParameters) -> Sphere {
+        Sphere { center, r, params }
+    }
+}
+
 impl ShapeCalculations for Sphere {
-    /// Retorn el valor "t" que se usaría en el rayo para llegar la intersección
+    /// Returns the distance "t" from the camera to the point
     fn get_intersection(&self, ray: &Ray) -> Option<f64> {
         let anchor = ray.anchor;
         let dir = ray.dir;
@@ -197,21 +234,8 @@ impl ShapeCalculations for Sphere {
         (intersection - self.center) / self.r
     }
 
-    fn get_color(&self) -> Color {
-        self.color
-    }
-
-    fn k_a(&self) -> f64 {
-        self.k_a
-    }
-    fn k_d(&self) -> f64 {
-        self.k_d
-    }
-    fn k_n(&self) -> f64 {
-        self.k_n
-    }
-    fn k_s(&self) -> f64 {
-        self.k_s
+    fn get_params(&self) -> ObjectParameters {
+        self.params
     }
 }
 
@@ -220,18 +244,33 @@ pub trait ShapeCalculations {
     /// Returns the distance "t" from the camera to the point
     fn get_intersection(&self, ray: &Ray) -> Option<f64>;
 
-    fn get_normal_vec(&self, point: Vec3) -> Vec3;
+    fn get_normal_vec(&self, intersection: Vec3) -> Vec3;
 
-    fn get_color(&self) -> Color;
+    // This method exists so that all the other parameter getters can have default impls and each
+    // struct must only define this method
+    fn get_params(&self) -> ObjectParameters;
 
-    fn k_a(&self) -> f64;
-    fn k_d(&self) -> f64;
-    fn k_n(&self) -> f64;
-    fn k_s(&self) -> f64;
+    fn get_color(&self) -> Color {
+        self.get_params().color
+    }
+
+    fn k_a(&self) -> f64 {
+        self.get_params().k_a
+    }
+    fn k_d(&self) -> f64 {
+        self.get_params().k_d
+    }
+    fn k_n(&self) -> f64 {
+        self.get_params().k_n
+    }
+    fn k_s(&self) -> f64 {
+        self.get_params().k_s
+    }
 }
 
 #[enum_dispatch(ShapeCalculations)]
 #[derive(Clone, Debug)]
 pub enum Shape {
     Sphere,
+    Plane,
 }

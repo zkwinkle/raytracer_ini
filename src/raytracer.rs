@@ -60,10 +60,12 @@ pub fn raytrace<P: AsRef<Path>>(
             screen.set_color(color.r as f32, color.g as f32, color.b as f32);
             screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
         }
-        if i % 1 == 0 {
-            screen.present()?;
-        }
+        //if i % 100 == 0 {
+        //    screen.present()?;
+        //}
     }
+
+    screen.present()?;
 
     screen.save_img(path)?;
 
@@ -162,12 +164,12 @@ fn get_first_intersection<'a>(ray: &Ray, scene: &'a Scene) -> Option<Intersectio
     let mut intersection: Option<Intersection> = None;
 
     for object in scene.get_objects() {
-        if let Some(t) = object.get_intersection(&ray) {
+        if let Some(t) = object.get_intersection(ray) {
             if t < tmin {
                 tmin = t;
                 intersection = Some(Intersection {
                     //t: tmin,
-                    object: &object,
+                    object,
                     point: ray.point_at_t(tmin),
                 });
             }
@@ -187,12 +189,12 @@ fn get_shadow_intersection<'a>(
     let mut intersection: Option<Intersection> = None;
 
     for object in scene.get_objects() {
-        if let Some(t) = object.get_intersection(&ray) {
+        if let Some(t) = object.get_intersection(ray) {
             if t < t_light && t > TOLERANCE {
                 // revisamos t > TOLERANCE para que el objeto no se auto-detecte como intersección
                 intersection = Some(Intersection {
                     //t,
-                    object: &object,
+                    object,
                     point: ray.point_at_t(t),
                 });
                 return intersection;

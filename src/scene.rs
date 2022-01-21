@@ -3,7 +3,7 @@ use configparser::ini::Ini;
 use std::path::Path;
 
 use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_HARDNESS, DEFAULT_LIGHT_COLOR};
-use crate::shapes::{Color, Shape, Sphere};
+use crate::shapes::{Color, ObjectParameters, Shape, Sphere};
 use crate::vec3::Vec3;
 
 pub struct Scene {
@@ -50,15 +50,9 @@ impl Scene {
             let radius = get_float_fails(&config, sphere_section, "radius")
                 .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
 
-            let color = get_color_fails(&config, sphere_section)?;
-            let k_d = get_float_fails(&config, sphere_section, "k_d")?;
-            let k_a = get_float_default(&config, sphere_section, "k_a", 1.0)?;
-            let k_s = get_float_fails(&config, sphere_section, "k_s")?;
-            let k_n = get_float_default(&config, sphere_section, "k_n", DEFAULT_HARDNESS)?;
+            let params = get_params(&config, sphere_section)?;
 
-            objects.push(Shape::Sphere(Sphere::new(
-                center, radius, color, k_a, k_d, k_n, k_s,
-            )));
+            objects.push(Shape::Sphere(Sphere::new(center, radius, params)));
         }
 
         // lights
@@ -175,10 +169,10 @@ fn get_float_default(config: &Ini, section: &str, key: &str, default: f64) -> Re
 }
 
 fn get_float_fails(config: &Ini, section: &str, key: &str) -> Result<f64> {
-    Ok(config
+    config
         .getfloat(section, key)
         .map_err(|s| anyhow!(s))?
-        .ok_or_else(|| anyhow!("Missing attribute '{}' for {} in config file", key, section))?)
+        .ok_or_else(|| anyhow!("Missing attribute '{}' for {} in config file", key, section))
 }
 
 fn get_color_fails(config: &Ini, section: &str) -> Result<Color> {
@@ -192,4 +186,20 @@ fn get_color_fails(config: &Ini, section: &str) -> Result<Color> {
 
 fn get_color_default(config: &Ini, section: &str, key: &str, default: &str) -> Result<Color> {
     Color::from_hex(config.get(section, key).as_deref().unwrap_or(default))
+}
+
+fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
+    let color = get_color_fails(config, section)?;
+    let k_d = get_float_fails(config, section, "k_d")?;
+    let k_a = get_float_default(config, section, "k_a", 1.0)?;
+    let k_s = get_float_fails(config, section, "k_s")?;
+    let k_n = get_float_default(config, section, "k_n", DEFAULT_HARDNESS)?;
+
+    Ok(ObjectParameters {
+        color,
+        k_d,
+        k_a,
+        k_s,
+        k_n,
+    })
 }

@@ -29,7 +29,7 @@ fn main() -> Result<()> {
     // raytrace :)
     raytrace(args.image, &observer, &scene, &mut screen)?;
 
-    sleep(Duration::from_millis(100));
+    sleep(Duration::from_millis(900));
 
     Ok(())
 }

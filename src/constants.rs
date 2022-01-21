@@ -1,5 +1,5 @@
 /// Tolerance with wich floating point comparisons are carried out
-pub const TOLERANCE: f64 = 0.001;
+pub const TOLERANCE: f64 = 0.00001;
 
 /// Default color of scene's background
 pub const DEFAULT_BG_COLOR: &str = "#3D1A28";
