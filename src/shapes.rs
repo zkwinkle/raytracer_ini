@@ -125,16 +125,18 @@ fn is_hex_format(hex: &str) -> bool {
     hex.starts_with('#') && hex.len() == 7 && hex[1..].chars().all(|d| d.is_digit(16))
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct ObjectParameters {
     pub color: Color,
     pub k_a: f64,
     pub k_d: f64,
     pub k_n: f64,
     pub k_s: f64,
+    pub o1: f64,
+    pub reflection: f64,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Plane {
     normal: Vec3,
     anchor: Vec3,
@@ -159,10 +161,10 @@ impl ShapeCalculations for Plane {
         let normal = self.normal;
         let denominator = normal.dot(ray.dir);
 
-        if denominator < TOLERANCE {
+        if denominator.abs() < TOLERANCE {
             None
         } else {
-            let t = (self.anchor - ray.anchor).dot(normal) / denominator;
+            let t = 1.0 * (self.anchor - ray.anchor).dot(normal) / denominator;
             // Check it's in front of camera
             if t > 0.0 {
                 Some(t)
@@ -176,12 +178,12 @@ impl ShapeCalculations for Plane {
         self.normal
     }
 
-    fn get_params(&self) -> ObjectParameters {
-        self.params
+    fn get_params(&self) -> &ObjectParameters {
+        &self.params
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Sphere {
     center: Vec3,
     r: f64,
@@ -234,8 +236,8 @@ impl ShapeCalculations for Sphere {
         (intersection - self.center) / self.r
     }
 
-    fn get_params(&self) -> ObjectParameters {
-        self.params
+    fn get_params(&self) -> &ObjectParameters {
+        &self.params
     }
 }
 
@@ -248,7 +250,7 @@ pub trait ShapeCalculations {
 
     // This method exists so that all the other parameter getters can have default impls and each
     // struct must only define this method
-    fn get_params(&self) -> ObjectParameters;
+    fn get_params(&self) -> &ObjectParameters;
 
     fn get_color(&self) -> Color {
         self.get_params().color
@@ -265,6 +267,12 @@ pub trait ShapeCalculations {
     }
     fn k_s(&self) -> f64 {
         self.get_params().k_s
+    }
+    fn o1(&self) -> f64 {
+        self.get_params().o1
+    }
+    fn reflection(&self) -> f64 {
+        self.get_params().reflection
     }
 }
 

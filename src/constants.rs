@@ -8,7 +8,11 @@ pub const DEFAULT_LIGHT_COLOR: &str = "#FFFFFF";
 /// Default values for parameters
 pub const DEFAULT_HARDNESS: f64 = 10.0;
 
+/// flag for calculating shadows
 pub const SHADOWS: bool = true;
+
+/// max number of recursive calls due to reflection
+pub const MAX_REFLECTIONS: u32 = 5;
 
 /// Default values for args
 pub const DEFAULT_RES: u32 = 600;

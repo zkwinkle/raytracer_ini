@@ -3,4 +3,4 @@ rustflags = ["-C", "opt-level=3"]
 
 [alias]
 rr = "run --release --"
-ig = "run --release -- 300 -o images/ig.png"
+ig = "run --release -- 1000 -o images/ig.png"

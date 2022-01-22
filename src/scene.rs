@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use configparser::ini::Ini;
 use std::path::Path;
 
 use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_HARDNESS, DEFAULT_LIGHT_COLOR};
-use crate::shapes::{Color, ObjectParameters, Shape, Sphere};
+use crate::shapes::{Color, ObjectParameters, Plane, Shape, Sphere};
 use crate::vec3::Vec3;
 
 pub struct Scene {
@@ -42,10 +42,7 @@ impl Scene {
             .iter()
             .filter(|s| s.len() >= 6 && &s[0..6] == "sphere")
         {
-            let center_x = get_float_fails(&config, sphere_section, "center_x")?;
-            let center_y = get_float_fails(&config, sphere_section, "center_y")?;
-            let center_z = get_float_fails(&config, sphere_section, "center_z")?;
-            let center = Vec3::new(center_x, center_y, center_z);
+            let center = get_vec3_fails(&config, sphere_section, "center")?;
 
             let radius = get_float_fails(&config, sphere_section, "radius")
                 .or_else(|_| get_float_fails(&config, sphere_section, "r"))?;
@@ -55,16 +52,27 @@ impl Scene {
             objects.push(Shape::Sphere(Sphere::new(center, radius, params)));
         }
 
+        for plane_section in config
+            .sections()
+            .iter()
+            .filter(|s| s.len() >= 5 && &s[0..5] == "plane")
+        {
+            let point = get_vec3_fails(&config, plane_section, "point")?;
+
+            let normal = get_vec3_fails(&config, plane_section, "normal")?;
+
+            let params = get_params(&config, plane_section)?;
+
+            objects.push(Shape::Plane(Plane::new(normal, point, params)));
+        }
+
         // lights
         for light_section in config
             .sections()
             .iter()
             .filter(|s| s.len() >= 5 && &s[0..5] == "light")
         {
-            let x = get_float_fails(&config, light_section, "x")?;
-            let y = get_float_fails(&config, light_section, "y")?;
-            let z = get_float_fails(&config, light_section, "z")?;
-            let position = Vec3::new(x, y, z);
+            let position = get_vec3_fails(&config, light_section, "position")?;
 
             let intensity = get_float_fails(&config, light_section, "intensity")
                 .or_else(|_| get_float_fails(&config, light_section, "I_p"))?;
@@ -133,11 +141,7 @@ impl Observer {
 
         config.load(path).map_err(|s| anyhow!(s))?;
 
-        let camera = Vec3 {
-            x: get_float_fails(&config, "camera", "x")?,
-            y: get_float_fails(&config, "camera", "y")?,
-            z: get_float_fails(&config, "camera", "z")?,
-        };
+        let camera = get_vec3_fails(&config, "camera", "position")?;
 
         let plane_z = get_float_default(&config, "plane", "z", 0.0)?;
 
@@ -188,12 +192,61 @@ fn get_color_default(config: &Ini, section: &str, key: &str, default: &str) -> R
     Color::from_hex(config.get(section, key).as_deref().unwrap_or(default))
 }
 
+fn get_vec3_fails(config: &Ini, section: &str, key: &str) -> Result<Vec3> {
+    let mut vec_string = config.get(section, key).ok_or_else(|| {
+        anyhow!(
+            "Missing vector attribute '{}' in section {} of config file",
+            key,
+            section
+        )
+    })?;
+
+    let first_char: char = vec_string.trim().chars().next().unwrap();
+
+    let valid_delimiters: Option<[&str; 2]> = match first_char {
+        '[' => Some(["[", "]"]),
+        '(' => Some(["(", ")"]),
+        '0'..='9' => None,
+        _ => return Err(anyhow!("In vector attribute '{}' in section {} the first element is not a valid delimiter or a valid number: {}", key, section, first_char)),
+    };
+
+    if let Some(delimiters) = valid_delimiters {
+        vec_string = vec_string
+            .trim()
+            .strip_prefix(delimiters[0])
+            .unwrap()
+            .strip_suffix(delimiters[1])
+            .ok_or_else(|| {
+                anyhow!(
+                    "In vector attribute '{}' in section {} the vector isn't terminated by the matching closing delimiter '{}'",
+                    key,
+                    section,
+                    delimiters[1]
+                )
+            })?.to_string();
+    }
+
+    let num_strs = vec_string.split(',');
+    let floats: Vec<f64> = num_strs
+        .map(|s| s.trim().parse::<f64>().map_err(Error::msg))
+        .collect::<Result<Vec<f64>>>().context(format!("In vector attribute '{}' in section {} the vector's elements aren't valid floating point numbers", key, section))?;
+
+    if floats.len() != 3 {
+        return Err(anyhow!("In vector attribute '{}' in section {} the vector supplied should be 3-dimensional and it's currently {}-dimensional", key, section, floats.len()));
+    }
+
+    Ok(Vec3::new(floats[0], floats[1], floats[2]))
+}
+
 fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
     let color = get_color_fails(config, section)?;
-    let k_d = get_float_fails(config, section, "k_d")?;
-    let k_a = get_float_default(config, section, "k_a", 1.0)?;
-    let k_s = get_float_fails(config, section, "k_s")?;
-    let k_n = get_float_default(config, section, "k_n", DEFAULT_HARDNESS)?;
+    let k_d = get_float_fails(config, section, "k_d")?.clamp(0.0, 1.0);
+    let k_a = get_float_default(config, section, "k_a", 1.0)?.clamp(0.0, 1.0);
+    let k_s = get_float_fails(config, section, "k_s")?.clamp(0.0, 1.0);
+    let k_n = get_float_default(config, section, "k_n", DEFAULT_HARDNESS)?.max(1.0);
+    let reflection = get_float_default(config, section, "reflection", 0.0)?.clamp(0.0, 1.0);
+
+    let o1 = 1.0 - reflection;
 
     Ok(ObjectParameters {
         color,
@@ -201,5 +254,7 @@ fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
         k_a,
         k_s,
         k_n,
+        o1,
+        reflection,
     })
 }

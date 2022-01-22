@@ -3,7 +3,7 @@ use itertools::multiunzip;
 use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
-use crate::constants::{SHADOWS, TOLERANCE};
+use crate::constants::{MAX_REFLECTIONS, SHADOWS, TOLERANCE};
 use crate::scene::{Light, Observer, Scene};
 use crate::shapes::{colors::BLACK, Color, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
@@ -44,6 +44,7 @@ pub fn raytrace<P: AsRef<Path>>(
     let z_t = observer.min_p.z;
 
     let height = screen.get_height();
+    let update_interval = screen.get_width() / 10;
 
     for i in 0..screen.get_width() {
         for j in 0..screen.get_height() {
@@ -54,15 +55,15 @@ pub fn raytrace<P: AsRef<Path>>(
             let ray = Ray::from_2_points(observer.camera, target);
 
             // Get color
-            let color = get_color_pixel(ray, scene);
+            let color = get_color_pixel(ray, scene, 1.0, MAX_REFLECTIONS);
 
             // Paint
             screen.set_color(color.r as f32, color.g as f32, color.b as f32);
             screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
         }
-        //if i % 100 == 0 {
-        //    screen.present()?;
-        //}
+        if i % update_interval == 0 {
+            screen.present()?;
+        }
     }
 
     screen.present()?;
@@ -72,9 +73,12 @@ pub fn raytrace<P: AsRef<Path>>(
     Ok(())
 }
 
-fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
+/// o1 = percentage of color that belongs to the current call (relevant for reflections and
+/// transparencies)
+fn get_color_pixel(ray: Ray, scene: &Scene, total_o1: f64, reflections: u32) -> Color {
     if let Some(inter) = get_first_intersection(&ray, scene) {
         let normal = inter.object.get_normal_vec(inter.point);
+
         let backwards_vec = -1.0 * ray.dir;
 
         // Calculate stuff relating to each specific light that has to be reused, for optimization
@@ -85,11 +89,15 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
             Vec<Vec3>,
         ) = multiunzip(scene.get_lights().iter().map(|light| {
             (
-                get_shadow_intersection(
-                    &Ray::from_2_points(inter.point, light.position),
-                    scene,
-                    light,
-                ),
+                if SHADOWS {
+                    get_shadow_intersection(
+                        &Ray::from_2_points(inter.point, light.position),
+                        scene,
+                        light,
+                    )
+                } else {
+                    None
+                },
                 // F_att * Ip
                 light.get_attenuation((light.position - inter.point).norm()) * light.intensity,
                 // L vectors
@@ -146,7 +154,28 @@ fn get_color_pixel(ray: Ray, scene: &Scene) -> Color {
             .sum::<Color>())
         .min(1.0);
 
-        rgb_d + total_speculation
+        let o1 = inter.object.o1();
+        if o1 < 1.0 && total_o1 > TOLERANCE && reflections > 0 {
+            let reflection_dir = ray.dir - 2.0 * (ray.dir.dot(normal)) * normal;
+
+            // We advance the anchor a bit (a TOLERANCE amount) to avoid the sphere getting stuck
+            // reflecting itself due to float rounding error
+            let reflection_vec = Ray {
+                anchor: inter.point + TOLERANCE * reflection_dir,
+                dir: reflection_dir,
+            };
+            let reflection = inter.object.reflection();
+            o1 * (rgb_d + total_speculation)
+                + reflection
+                    * get_color_pixel(
+                        reflection_vec,
+                        scene,
+                        total_o1 * reflection,
+                        reflections - 1,
+                    )
+        } else {
+            rgb_d + total_speculation
+        }
     } else {
         scene.bg_color
     }
