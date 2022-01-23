@@ -75,7 +75,8 @@ impl Scene {
             let position = get_vec3_fails(&config, light_section, "position")?;
 
             let intensity = get_float_fails(&config, light_section, "intensity")
-                .or_else(|_| get_float_fails(&config, light_section, "I_p"))?;
+                .or_else(|_| get_float_fails(&config, light_section, "I_p"))?
+                .max(0.0);
 
             let c_1 = get_float_fails(&config, light_section, "c_1")
                 .or_else(|_| get_float_fails(&config, light_section, "C1"))?;
@@ -245,8 +246,13 @@ fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
     let k_s = get_float_fails(config, section, "k_s")?.clamp(0.0, 1.0);
     let k_n = get_float_default(config, section, "k_n", DEFAULT_HARDNESS)?.max(1.0);
     let reflection = get_float_default(config, section, "reflection", 0.0)?.clamp(0.0, 1.0);
+    let transparency = get_float_default(config, section, "transparency", 0.0)?.clamp(0.0, 1.0);
 
-    let o1 = 1.0 - reflection;
+    if reflection + transparency > 1.0 {
+        return Err(anyhow!("In section '{}' the transparency+reflection > 1. The transparecy + reflection must not sum to more than 1, please lower the values.", section));
+    }
+
+    let o1 = 1.0 - (reflection + transparency);
 
     Ok(ObjectParameters {
         color,
@@ -256,5 +262,6 @@ fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
         k_n,
         o1,
         reflection,
+        transparency,
     })
 }

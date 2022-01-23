@@ -12,7 +12,7 @@ pub const DEFAULT_HARDNESS: f64 = 10.0;
 pub const SHADOWS: bool = true;
 
 /// max number of recursive calls due to reflection
-pub const MAX_REFLECTIONS: u32 = 5;
+pub const MAX_REFLECTIONS: u32 = 8;
 
 /// Default values for args
 pub const DEFAULT_RES: u32 = 600;

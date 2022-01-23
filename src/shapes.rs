@@ -134,6 +134,7 @@ pub struct ObjectParameters {
     pub k_s: f64,
     pub o1: f64,
     pub reflection: f64,
+    pub transparency: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -273,6 +274,9 @@ pub trait ShapeCalculations {
     }
     fn reflection(&self) -> f64 {
         self.get_params().reflection
+    }
+    fn transparency(&self) -> f64 {
+        self.get_params().transparency
     }
 }
 
