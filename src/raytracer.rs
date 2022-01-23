@@ -84,6 +84,15 @@ pub fn raytrace<P: AsRef<Path>>(
 fn get_color_pixel(ray: Ray, scene: &Scene, total_o1: f64, reflections: u32) -> Color {
     if let Some(inter) = get_first_intersection(&ray, scene) {
         let normal = inter.object.get_normal_vec(inter.point);
+        let tex = inter.object.get_texture_coords(inter.point);
+
+        // bump mapping experiments ( wip / trippy weird stuff, idk how to go about this)
+        //let normal = Vec3 {
+        //    x: tex.x % (normal.x),
+        //    y: tex.y % (normal.x),
+        //    z: normal.z % (normal.x),
+        //}
+        //let normal = (normal + inter.point).normalize().normalize();
 
         let backwards_vec = -1.0 * ray.dir;
 
