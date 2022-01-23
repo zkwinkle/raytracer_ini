@@ -247,6 +247,7 @@ fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
     let k_n = get_float_default(config, section, "k_n", DEFAULT_HARDNESS)?.max(1.0);
     let reflection = get_float_default(config, section, "reflection", 0.0)?.clamp(0.0, 1.0);
     let transparency = get_float_default(config, section, "transparency", 0.0)?.clamp(0.0, 1.0);
+    let checkerboard = get_float_default(config, section, "checkerboard", 0.0)?.max(0.0);
 
     if reflection + transparency > 1.0 {
         return Err(anyhow!("In section '{}' the transparency+reflection > 1. The transparecy + reflection must not sum to more than 1, please lower the values.", section));
@@ -263,5 +264,6 @@ fn get_params(config: &Ini, section: &str) -> Result<ObjectParameters> {
         o1,
         reflection,
         transparency,
+        checkerboard,
     })
 }

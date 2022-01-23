@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use enum_dispatch::enum_dispatch;
+use std::f64::consts::PI;
 use std::iter::Sum;
 use std::ops;
 
@@ -126,18 +127,6 @@ fn is_hex_format(hex: &str) -> bool {
 }
 
 #[derive(Clone, Debug)]
-pub struct ObjectParameters {
-    pub color: Color,
-    pub k_a: f64,
-    pub k_d: f64,
-    pub k_n: f64,
-    pub k_s: f64,
-    pub o1: f64,
-    pub reflection: f64,
-    pub transparency: f64,
-}
-
-#[derive(Clone, Debug)]
 pub struct Plane {
     normal: Vec3,
     anchor: Vec3,
@@ -177,6 +166,21 @@ impl ShapeCalculations for Plane {
 
     fn get_normal_vec(&self, _: Vec3) -> Vec3 {
         self.normal
+    }
+
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
+        let mut x_axis = self.normal.cross(Vec3::new(0.0, 0.0, 1.0));
+        if x_axis.norm() == 0.0 {
+            x_axis = self.normal.cross(Vec3::new(0.0, 1.0, 0.0));
+        }
+        let y_axis = self.normal.cross(x_axis);
+
+        let plane_vec = intersection - self.anchor;
+
+        TextureCoords {
+            x: plane_vec.dot(x_axis) as f64,
+            y: plane_vec.dot(y_axis) as f64,
+        }
     }
 
     fn get_params(&self) -> &ObjectParameters {
@@ -237,23 +241,70 @@ impl ShapeCalculations for Sphere {
         (intersection - self.center) / self.r
     }
 
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
+        let spherical_vec = intersection - self.center;
+        TextureCoords {
+            x: (1.0 + (spherical_vec.z.atan2(spherical_vec.x) as f64) / PI) * 0.5,
+            y: (spherical_vec.y / self.r).acos() as f64 / PI,
+        }
+    }
+
     fn get_params(&self) -> &ObjectParameters {
         &self.params
     }
 }
 
+pub struct TextureCoords {
+    pub x: f64,
+    pub y: f64,
+}
+
+fn checker_pattern<T: ShapeCalculations>(coords: TextureCoords, object: &T) -> Color {
+    type Int = i32;
+    let int_x = (((coords.x / object.checkerboard()).floor()) % Int::MAX as f64) as Int;
+    let int_y = (((coords.y / object.checkerboard()).floor()) % Int::MAX as f64) as Int;
+
+    if (int_x + int_y) % 2 == 0 {
+        object.color()
+    } else {
+        colors::BLACK
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ObjectParameters {
+    pub color: Color,
+    pub k_a: f64,
+    pub k_d: f64,
+    pub k_n: f64,
+    pub k_s: f64,
+    pub o1: f64,
+    pub reflection: f64,
+    pub transparency: f64,
+    pub checkerboard: f64,
+}
+
 #[enum_dispatch]
-pub trait ShapeCalculations {
+pub trait ShapeCalculations: Sized {
     /// Returns the distance "t" from the camera to the point
     fn get_intersection(&self, ray: &Ray) -> Option<f64>;
 
     fn get_normal_vec(&self, intersection: Vec3) -> Vec3;
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords;
 
     // This method exists so that all the other parameter getters can have default impls and each
     // struct must only define this method
     fn get_params(&self) -> &ObjectParameters;
 
-    fn get_color(&self) -> Color {
+    fn get_color_at(&self, point: Vec3) -> Color {
+        if self.get_params().checkerboard > 0.0 {
+            checker_pattern(self.get_texture_coords(point), self)
+        } else {
+            self.color()
+        }
+    }
+
+    fn color(&self) -> Color {
         self.get_params().color
     }
 
@@ -277,6 +328,9 @@ pub trait ShapeCalculations {
     }
     fn transparency(&self) -> f64 {
         self.get_params().transparency
+    }
+    fn checkerboard(&self) -> f64 {
+        self.get_params().checkerboard
     }
 }
 

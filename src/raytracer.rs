@@ -126,7 +126,7 @@ fn get_color_pixel(ray: Ray, scene: &Scene, total_o1: f64, reflections: u32) -> 
             + (scene.ambient_color * scene.ambient * inter.object.k_a()))
         .min(1.0);
 
-        let rgb_d = total_intensity * inter.object.get_color();
+        let rgb_d = total_intensity * inter.object.get_color_at(inter.point);
 
         let total_speculation = (scene
             .get_lights()
