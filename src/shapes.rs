@@ -243,9 +243,10 @@ impl ShapeCalculations for Sphere {
 
     fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
         let spherical_vec = intersection - self.center;
+        let circumference = 2.0 * PI * self.r;
         TextureCoords {
-            x: (1.0 + (spherical_vec.z.atan2(spherical_vec.x) as f64) / PI) * 0.5,
-            y: (spherical_vec.y / self.r).acos() as f64 / PI,
+            x: circumference * (1.0 + (spherical_vec.z.atan2(spherical_vec.x) as f64) / PI),
+            y: circumference * (spherical_vec.y / self.r).acos() as f64 / PI,
         }
     }
 
