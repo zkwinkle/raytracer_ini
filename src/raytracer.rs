@@ -3,7 +3,7 @@ use itertools::multiunzip;
 use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
-use crate::constants::{MAX_REFLECTIONS, SHADOWS, TOLERANCE};
+use crate::constants::{MAX_REFLECTIONS, SHADOWS, TOLERANCE, TOLERANCE_MUL};
 use crate::scene::{Light, Observer, Scene};
 use crate::shapes::{Color, Ray, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
@@ -129,7 +129,7 @@ fn get_color_pixel(ray: Ray, scene: &Scene, total_o1: f64, reflections: u32) -> 
         let object_color = rgb_d + total_speculation;
 
         let o1 = inter.object.o1();
-        if o1 < 1.0 && total_o1 > TOLERANCE {
+        if o1 < 1.0 && total_o1 > TOLERANCE * TOLERANCE_MUL {
             let transparency_c = if inter.object.transparency() > TOLERANCE {
                 let refraction_dir = get_refractive_dir(&ray);
 
@@ -229,7 +229,7 @@ fn get_shadow_intersection<'a>(ray: &Ray, scene: &'a Scene, light: &Light) -> f6
                             light,
                         )
                 } else {
-                    object.transparency()
+                    0.0
                 };
                 return total_transparency;
             }

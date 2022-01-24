@@ -205,8 +205,8 @@ impl ShapeCalculations for Plane {
         let plane_vec = intersection - self.anchor;
 
         TextureCoords {
-            x: plane_vec.dot(x_axis) as f64,
-            y: plane_vec.dot(y_axis) as f64,
+            x: plane_vec.dot(x_axis),
+            y: plane_vec.dot(y_axis),
         }
     }
 
@@ -413,10 +413,142 @@ impl ShapeCalculations for Cylinder {
 #[derive(Clone, Debug)]
 pub struct Cone {
     ray: Ray,
-    r: f64,
     length: f64,
     params: ObjectParameters,
     slope: f64,
+}
+
+impl Cone {
+    pub fn new(
+        anchor: Vec3,
+        dir: Vec3,
+        length: f64,
+        k1: f64,
+        k2: f64,
+        params: ObjectParameters,
+    ) -> Cone {
+        Cone {
+            ray: Ray {
+                anchor,
+                dir: dir.normalize(),
+            },
+            length,
+            params,
+            slope: k2 / k1,
+        }
+    }
+
+    fn get_length_at_inter(&self, intersection: Vec3) -> f64 {
+        let l = intersection - self.ray.anchor;
+        l.dot(self.ray.dir)
+    }
+
+    fn r_at(&self, length: f64) -> f64 {
+        length * self.slope
+    }
+}
+
+impl ShapeCalculations for Cone {
+    /// Returns the distance "t" from the camera to the point
+    fn get_intersection(&self, ray: &Ray) -> Option<f64> {
+        //// First we displace the ray's anchor to align with the origin
+        let displaced_anchor =
+            ray.anchor
+                .translation(-self.ray.anchor.x, -self.ray.anchor.y, -self.ray.anchor.z);
+
+        // then, figure out rotation matrix
+        let rotation = self.ray.dir.to_align(Vec3 {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        });
+
+        // then rotate
+        let rotated_dir = ray.dir.apply_matrix(rotation);
+        let rotated_anchor = displaced_anchor.apply_matrix(rotation);
+
+        let fixed_ray = Ray {
+            anchor: rotated_anchor,
+            dir: rotated_dir,
+        };
+
+        // Now we find the intersection with the cylinder whose base is at the origin and direction
+        // is aligned with 'y'
+
+        let dir = fixed_ray.dir;
+        let anchor = fixed_ray.anchor;
+
+        let slope2 = self.slope * self.slope;
+        let a = dir.x * dir.x + dir.z * dir.z - dir.y * dir.y * slope2;
+        let b = 2.0 * (dir.x * anchor.x + dir.z * anchor.z - dir.y * anchor.y * slope2);
+        let c = anchor.x * anchor.x + anchor.z * anchor.z - anchor.y * anchor.y * slope2;
+
+        let determinant = (b * b - 4.0 * a * c).sqrt();
+
+        if determinant.is_nan() {
+            None
+        } else {
+            let t1 = (-b - determinant) / (2.0 * a);
+            let t2 = (-b + determinant) / (2.0 * a);
+
+            let t1_d = self.get_length_at_inter(ray.point_at_t(t1));
+            let t2_d = self.get_length_at_inter(ray.point_at_t(t2));
+
+            if t1 > 0.0 {
+                if t1_d <= self.length && t1_d > 0.0 {
+                    Some(t1)
+                } else if t2_d <= self.length && t2_d > 0.0 {
+                    Some(t2)
+                } else {
+                    None
+                }
+            } else if t2 < 0.0 {
+                None
+            } else {
+                if t2_d <= self.length && t2_d > 0.0 {
+                    Some(t2)
+                } else {
+                    None
+                }
+                // panic!("No está implementado el caso de la cámara dentro de una esfera");
+                // Normalmente se retornaría t2
+            }
+        }
+    }
+
+    fn get_normal_vec(&self, intersection: Vec3) -> Vec3 {
+        //println!("Normal intersection at: {:?}", intersection);
+        let d = self.get_length_at_inter(intersection);
+        let v_m = self.ray.point_at_t(d);
+
+        (intersection - v_m).normalize()
+    }
+
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
+        //// First we displace the ray's anchor to align with the origin
+        let displaced_intersection =
+            intersection.translation(-self.ray.anchor.x, -self.ray.anchor.y, -self.ray.anchor.z);
+
+        // then, figure out rotation matrix
+        let rotation = self.ray.dir.to_align(Vec3 {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        });
+
+        // then rotate
+        let rotated_intersection = displaced_intersection.apply_matrix(rotation);
+
+        TextureCoords {
+            x: self.r_at(self.get_length_at_inter(intersection))
+                * (1.0 + rotated_intersection.z.atan2(rotated_intersection.x) as f64),
+            y: rotated_intersection.y,
+        }
+    }
+
+    fn get_params(&self) -> &ObjectParameters {
+        &self.params
+    }
 }
 
 pub struct TextureCoords {
@@ -504,5 +636,6 @@ pub trait ShapeCalculations: Sized {
 pub enum Shape {
     Sphere,
     Cylinder,
+    Cone,
     Plane,
 }

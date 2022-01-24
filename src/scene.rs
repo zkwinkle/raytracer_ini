@@ -3,7 +3,7 @@ use configparser::ini::Ini;
 use std::path::Path;
 
 use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_HARDNESS, DEFAULT_LIGHT_COLOR};
-use crate::shapes::{Color, Cylinder, ObjectParameters, Plane, Shape, Sphere};
+use crate::shapes::{Color, Cone, Cylinder, ObjectParameters, Plane, Shape, Sphere};
 use crate::vec3::Vec3;
 
 pub struct Scene {
@@ -70,6 +70,23 @@ impl Scene {
             objects.push(Shape::Cylinder(Cylinder::new(
                 anchor, dir, radius, length, params,
             )));
+        }
+
+        for cone_section in config
+            .sections()
+            .iter()
+            .filter(|s| s.len() >= 4 && &s[0..4] == "cone")
+        {
+            let anchor = get_vec3_fails(&config, cone_section, "anchor")?;
+            let dir = get_vec3_fails(&config, cone_section, "dir")?;
+
+            let length = get_float_fails(&config, cone_section, "length")?;
+            let k1 = get_float_fails(&config, cone_section, "k1")?;
+            let k2 = get_float_fails(&config, cone_section, "k2")?;
+
+            let params = get_params(&config, cone_section)?;
+
+            objects.push(Shape::Cone(Cone::new(anchor, dir, length, k1, k2, params)));
         }
 
         for plane_section in config
