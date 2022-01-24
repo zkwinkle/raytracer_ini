@@ -278,6 +278,94 @@ impl ShapeCalculations for Disc {
 }
 
 #[derive(Clone, Debug)]
+pub struct Triangle {
+    normal: Vec3,
+    a: Vec3,
+    b: Vec3,
+    c: Vec3,
+    params: ObjectParameters,
+}
+
+impl Triangle {
+    pub fn new(a: Vec3, b: Vec3, c: Vec3, params: ObjectParameters) -> Triangle {
+        let normal = (b - a).cross(c - a).normalize();
+        Triangle {
+            a,
+            b,
+            c,
+            normal,
+            params,
+        }
+    }
+}
+
+impl ShapeCalculations for Triangle {
+    /// Returns the distance "t" from the camera to the point
+    fn get_intersection(&self, ray: &Ray) -> Option<f64> {
+        let normal = self.normal;
+        let denominator = normal.dot(ray.dir);
+
+        if denominator.abs() < TOLERANCE {
+            None
+        } else {
+            let t = 1.0 * (self.a - ray.anchor).dot(normal) / denominator;
+
+            // get barycentric coords
+            // ref: https://math.stackexchange.com/a/544947
+            let p = ray.point_at_t(t);
+
+            let u = self.b - self.a;
+            let v = self.c - self.a;
+
+            let n = u.cross(v);
+            let w = p - self.a;
+
+            let n2 = n.dot(n);
+            let gamma = (u.cross(w).dot(n)) / n2;
+            let beta = (w.cross(v).dot(n)) / n2;
+            let alpha = 1.0 - gamma - beta;
+
+            // Check it's in front of camera
+            if t > 0.0
+                && 0.0 <= alpha
+                && alpha <= 1.0
+                && 0.0 <= beta
+                && beta <= 1.0
+                && 0.0 <= gamma
+                && gamma <= 1.0
+            {
+                Some(t)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn get_normal_vec(&self, _: Vec3) -> Vec3 {
+        self.normal
+    }
+
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
+        let mut x_axis = self.normal.cross(Vec3::new(0.0, 0.0, 1.0));
+        if x_axis.norm() == 0.0 {
+            x_axis = self.normal.cross(Vec3::new(0.0, 1.0, 0.0));
+        }
+        let y_axis = self.normal.cross(x_axis);
+
+        let plane_vec = intersection - self.a;
+
+        TextureCoords {
+            x: plane_vec.dot(x_axis),
+            y: plane_vec.dot(y_axis),
+        }
+    }
+
+    fn get_params(&self) -> &ObjectParameters {
+        &self.params
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Sphere {
     center: Vec3,
     r: f64,
@@ -693,4 +781,5 @@ pub enum Shape {
     Cone,
     Plane,
     Disc,
+    Triangle,
 }
