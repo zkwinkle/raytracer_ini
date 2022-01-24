@@ -1,3 +1,4 @@
+use crate::constants::TOLERANCE;
 use std::ops;
 
 #[derive(Debug, Clone, Copy)]
@@ -74,10 +75,113 @@ impl Vec3 {
     }
 
     pub fn cross(self, other: Vec3) -> Vec3 {
-        Vec3::new(
-            self.y * other.z - self.z * other.y,
-            self.z * other.x - self.x * other.z,
-            self.x * other.y - self.y * other.x,
-        )
+        Vec3 {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        }
     }
+
+    /// The angle is in radians
+    pub fn rotate_x(self, angle: f64) -> Vec3 {
+        Vec3 {
+            x: self.x,
+            y: self.y * angle.cos() - self.z * angle.sin(),
+            z: self.y * angle.sin() + self.z * angle.cos(),
+        }
+    }
+    /// The angle is in radians
+    pub fn rotate_y(self, angle: f64) -> Vec3 {
+        Vec3 {
+            x: self.x * angle.cos() + self.y * angle.sin(),
+            y: self.y,
+            z: -1.0 * self.x * angle.sin() + self.z * angle.cos(),
+        }
+    }
+    /// The angle is in radians
+    pub fn rotate_z(self, angle: f64) -> Vec3 {
+        Vec3 {
+            x: self.x * angle.cos() + self.y * angle.sin(),
+            y: self.x * angle.sin() - self.y * angle.cos(),
+            z: self.z,
+        }
+    }
+
+    pub fn to_align(self, to_align: Vec3) -> [[f64; 3]; 3] {
+        const I: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        // safety for unit vectors
+        let a = self.normalize();
+        let b = to_align.normalize();
+
+        let c = a.dot(b);
+
+        if (c + 1.0).abs() < TOLERANCE {
+            return I;
+        }
+
+        let v = a.cross(b);
+
+        let skew = [[0.0, -v.z, v.y], [v.z, 0.0, -v.x], [-v.y, v.x, 0.0]];
+
+        let vxvy = v.x * v.y;
+        let vxvz = v.x * v.z;
+        let vyvz = v.y * v.z;
+        let vx2 = v.x * v.x;
+        let vy2 = v.y * v.y;
+        let vz2 = v.z * v.z;
+
+        let skew2 = [
+            [-vy2 - vz2, vxvy, vxvz],
+            [vxvy, -vx2 - vz2, vyvz],
+            [vxvz, vyvz, -vx2 - vy2],
+        ];
+
+        matrix_sum(I, matrix_sum(skew, matrix_mul_k(skew2, 1.0 / (1.0 + c))))
+    }
+
+    pub fn apply_matrix(self, matrix: [[f64; 3]; 3]) -> Vec3 {
+        let mut result: [f64; 3] = [0.0; 3];
+        for i in 0..3 {
+            result[i] = matrix[i][0] * self.x + matrix[i][1] * self.y + matrix[i][2] * self.z;
+        }
+
+        Vec3 {
+            x: result[0],
+            y: result[1],
+            z: result[2],
+        }
+    }
+
+    pub fn translation(self, x: f64, y: f64, z: f64) -> Vec3 {
+        self + Vec3 { x, y, z }
+    }
+}
+
+fn matrix_sum(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+    [
+        [a[0][0] + b[0][0], a[0][1] + b[0][1], a[0][2] + b[0][2]],
+        [a[1][0] + b[1][0], a[1][1] + b[1][1], a[1][2] + b[1][2]],
+        [a[2][0] + b[2][0], a[2][1] + b[2][1], a[2][2] + b[2][2]],
+    ]
+}
+
+//fn matrix_mul(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
+//    let mut result: [[f64; 3]; 3] = [[0.0; 3]; 3];
+//    for i in 0..3 {
+//        for j in 0..3 {
+//            result[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j];
+//        }
+//    }
+//    result
+//}
+//
+fn matrix_mul_k(a: [[f64; 3]; 3], k: f64) -> [[f64; 3]; 3] {
+    let mut result: [[f64; 3]; 3] = [[0.0; 3]; 3];
+    for i in 0..3 {
+        for j in 0..3 {
+            result[i][j] = a[i][j] * k
+        }
+    }
+    result
 }

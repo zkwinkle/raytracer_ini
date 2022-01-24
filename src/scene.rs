@@ -3,7 +3,7 @@ use configparser::ini::Ini;
 use std::path::Path;
 
 use crate::constants::{DEFAULT_BG_COLOR, DEFAULT_HARDNESS, DEFAULT_LIGHT_COLOR};
-use crate::shapes::{Color, ObjectParameters, Plane, Shape, Sphere};
+use crate::shapes::{Color, Cylinder, ObjectParameters, Plane, Shape, Sphere};
 use crate::vec3::Vec3;
 
 pub struct Scene {
@@ -50,6 +50,26 @@ impl Scene {
             let params = get_params(&config, sphere_section)?;
 
             objects.push(Shape::Sphere(Sphere::new(center, radius, params)));
+        }
+
+        for cylinder_section in config
+            .sections()
+            .iter()
+            .filter(|s| s.len() >= 8 && &s[0..8] == "cylinder")
+        {
+            let anchor = get_vec3_fails(&config, cylinder_section, "anchor")?;
+            let dir = get_vec3_fails(&config, cylinder_section, "dir")?;
+
+            let radius = get_float_fails(&config, cylinder_section, "radius")
+                .or_else(|_| get_float_fails(&config, cylinder_section, "r"))?;
+
+            let length = get_float_fails(&config, cylinder_section, "length")?;
+
+            let params = get_params(&config, cylinder_section)?;
+
+            objects.push(Shape::Cylinder(Cylinder::new(
+                anchor, dir, radius, length, params,
+            )));
         }
 
         for plane_section in config
@@ -134,6 +154,8 @@ pub struct Observer {
     pub min_p: Vec3,
     /// maximum point of the projection plane
     pub max_p: Vec3,
+
+    pub plane_z: f64,
 }
 
 impl Observer {
@@ -162,6 +184,7 @@ impl Observer {
             camera,
             min_p,
             max_p,
+            plane_z,
         })
     }
 }

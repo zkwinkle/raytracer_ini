@@ -5,39 +5,8 @@ use std::path::Path;
 
 use crate::constants::{MAX_REFLECTIONS, SHADOWS, TOLERANCE};
 use crate::scene::{Light, Observer, Scene};
-use crate::shapes::{Color, Shape, ShapeCalculations};
+use crate::shapes::{Color, Ray, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
-
-#[derive(Debug)]
-pub struct Ray {
-    pub anchor: Vec3,
-    pub dir: Vec3,
-}
-
-impl Ray {
-    pub fn from_2_points(p_origin: Vec3, p_target: Vec3) -> Ray {
-        // println!("Ray from origin: {:?}\tto target: {:?}", p_origin, p_target);
-        // println!("target - og: {:?}", p_target - p_origin);
-        let v_dir: Vec3 = (p_target - p_origin).normalize();
-        Ray {
-            anchor: p_origin,
-            dir: v_dir,
-        }
-    }
-
-    pub fn advance(self, t: f64) -> Ray {
-        Ray {
-            anchor: self.anchor + t * self.dir,
-            dir: self.dir,
-        }
-    }
-}
-
-impl Ray {
-    pub fn point_at_t(&self, t: f64) -> Vec3 {
-        self.anchor + self.dir * t
-    }
-}
 
 pub fn raytrace<P: AsRef<Path>>(
     path: P,
@@ -48,7 +17,7 @@ pub fn raytrace<P: AsRef<Path>>(
     let ratio_x = (observer.max_p.x - observer.min_p.x) / f64::from(screen.get_width());
     let ratio_y = (observer.max_p.y - observer.min_p.y) / f64::from(screen.get_height());
 
-    let z_t = observer.min_p.z;
+    let z_t = observer.plane_z;
 
     let height = screen.get_height();
     let update_interval = screen.get_width() / 10;
@@ -84,14 +53,12 @@ pub fn raytrace<P: AsRef<Path>>(
 fn get_color_pixel(ray: Ray, scene: &Scene, total_o1: f64, reflections: u32) -> Color {
     if let Some(inter) = get_first_intersection(&ray, scene) {
         let normal = inter.object.get_normal_vec(inter.point);
-        let tex = inter.object.get_texture_coords(inter.point);
-
         // bump mapping experiments ( wip / trippy weird stuff, idk how to go about this)
         //let normal = Vec3 {
-        //    x: tex.x % (normal.x),
-        //    y: tex.y % (normal.x),
+        //    x: tex.y % (normal.y),
+        //    y: tex.x % (normal.x),
         //    z: normal.z % (normal.x),
-        //}
+        //};
         //let normal = (normal + inter.point).normalize().normalize();
 
         let backwards_vec = -1.0 * ray.dir;
