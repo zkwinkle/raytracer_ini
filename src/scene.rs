@@ -215,17 +215,21 @@ impl Observer {
 
         let camera = get_vec3_fails(&config, "camera", "position")?;
 
-        let plane_z = get_float_default(&config, "plane", "z", 0.0)?;
+        let plane_z = get_float_default(&config, "projection plane", "z", 0.0)?;
 
         let min_p = Vec3 {
-            x: get_float_fails(&config, "plane", "x_min")?,
-            y: get_float_fails(&config, "plane", "y_min")?,
+            x: get_float_fails(&config, "projection plane", "x_min")
+                .or_else(|_| get_float_fails(&config, "projection_plane", "x_min"))?,
+            y: get_float_fails(&config, "projection plane", "y_min")
+                .or_else(|_| get_float_fails(&config, "projection_plane", "x_min"))?,
             z: plane_z,
         };
 
         let max_p = Vec3 {
-            x: get_float_fails(&config, "plane", "x_max")?,
-            y: get_float_fails(&config, "plane", "y_max")?,
+            x: get_float_fails(&config, "projection plane", "x_max")
+                .or_else(|_| get_float_fails(&config, "projection_plane", "x_max"))?,
+            y: get_float_fails(&config, "projection plane", "y_max")
+                .or_else(|_| get_float_fails(&config, "projection_plane", "x_max"))?,
             z: plane_z,
         };
 
