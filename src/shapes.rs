@@ -216,6 +216,68 @@ impl ShapeCalculations for Plane {
 }
 
 #[derive(Clone, Debug)]
+pub struct Disc {
+    normal: Vec3,
+    center: Vec3,
+    r: f64,
+    params: ObjectParameters,
+}
+
+impl Disc {
+    pub fn new(normal: Vec3, center: Vec3, r: f64, params: ObjectParameters) -> Disc {
+        Disc {
+            center,
+            normal: normal.normalize(),
+            r,
+            params,
+        }
+    }
+}
+
+impl ShapeCalculations for Disc {
+    /// Returns the distance "t" from the camera to the point
+    fn get_intersection(&self, ray: &Ray) -> Option<f64> {
+        let normal = self.normal;
+        let denominator = normal.dot(ray.dir);
+
+        if denominator.abs() < TOLERANCE {
+            None
+        } else {
+            let t = 1.0 * (self.center - ray.anchor).dot(normal) / denominator;
+            // Check it's in front of camera + inside radius
+            if t > 0.0 && (ray.point_at_t(t) - self.center).norm() <= self.r {
+                Some(t)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn get_normal_vec(&self, _: Vec3) -> Vec3 {
+        self.normal
+    }
+
+    fn get_texture_coords(&self, intersection: Vec3) -> TextureCoords {
+        let mut x_axis = self.normal.cross(Vec3::new(0.0, 0.0, 1.0));
+        if x_axis.norm() == 0.0 {
+            x_axis = self.normal.cross(Vec3::new(0.0, 1.0, 0.0));
+        }
+        let y_axis = self.normal.cross(x_axis);
+
+        let plane_vec = intersection - self.center;
+
+        TextureCoords {
+            x: plane_vec.dot(x_axis),
+            y: plane_vec.dot(y_axis),
+        }
+    }
+
+    fn get_params(&self) -> &ObjectParameters {
+        &self.params
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Sphere {
     center: Vec3,
     r: f64,
@@ -364,14 +426,10 @@ impl ShapeCalculations for Cylinder {
                 }
             } else if t2 < 0.0 {
                 None
+            } else if t2_d <= self.length && t2_d > 0.0 {
+                Some(t2)
             } else {
-                if t2_d <= self.length && t2_d > 0.0 {
-                    Some(t2)
-                } else {
-                    None
-                }
-                // panic!("No está implementado el caso de la cámara dentro de una esfera");
-                // Normalmente se retornaría t2
+                None
             }
         }
     }
@@ -504,14 +562,10 @@ impl ShapeCalculations for Cone {
                 }
             } else if t2 < 0.0 {
                 None
+            } else if t2_d <= self.length && t2_d > 0.0 {
+                Some(t2)
             } else {
-                if t2_d <= self.length && t2_d > 0.0 {
-                    Some(t2)
-                } else {
-                    None
-                }
-                // panic!("No está implementado el caso de la cámara dentro de una esfera");
-                // Normalmente se retornaría t2
+                None
             }
         }
     }
@@ -638,4 +692,5 @@ pub enum Shape {
     Cylinder,
     Cone,
     Plane,
+    Disc,
 }
