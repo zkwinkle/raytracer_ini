@@ -1,21 +1,12 @@
 use anyhow::{Error, Result};
-use bytemuck::{self, Pod, Zeroable};
-use image;
+use image::{ImageBuffer, Rgb, RgbImage};
 use std::path::Path;
-
-#[derive(Copy, Clone, Pod, Zeroable)]
-#[repr(C)]
-struct Pixel {
-    r: u8,
-    g: u8,
-    b: u8,
-}
 
 /// This struct abstracts away any direct interaction with the SDL module, so that the user may
 /// only need to call the provided methods without `use`ing any sdl modules.
 pub struct ScreenContextManager {
-    framebuffer: Vec<Pixel>,
-    color: Pixel,
+    framebuffer: RgbImage,
+    color: Rgb<u8>,
     height: u32,
     width: u32,
 }
@@ -25,8 +16,8 @@ impl ScreenContextManager {
     pub fn new(width: u32, height: u32) -> ScreenContextManager {
         ScreenContextManager {
             // Create empty framebuffer
-            framebuffer: vec![Pixel { r: 0, g: 0, b: 0 }; (width * height) as usize],
-            color: Pixel { r: 0, g: 0, b: 0 },
+            framebuffer: ImageBuffer::new(width, height),
+            color: Rgb([0, 0, 0]),
             height,
             width,
         }
@@ -42,29 +33,23 @@ impl ScreenContextManager {
     /// Sets the color to be used for drawing operations.
     /// Parameters correspond to RGB colors and must be real numbers in the range [0, 1].
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
-        self.color = Pixel {
-            r: (r * 255.0).round() as u8,
-            g: (g * 255.0).round() as u8,
-            b: (b * 255.0).round() as u8,
-        };
+        self.color = Rgb([
+            (r * 255.0).round() as u8,
+            (g * 255.0).round() as u8,
+            (b * 255.0).round() as u8,
+        ]);
     }
 
     /// Plots a single pixel on the framebuffer.
     pub fn plot_pixel(&mut self, x: u32, y: u32) {
-        let i = (y * self.width + x) as usize;
-        //println!("Drawing to {}, {}, {}", i, i + 1, i + 2);
-        self.framebuffer[i] = self.color;
+        self.framebuffer.put_pixel(x, y, self.color);
     }
 
     #[allow(dead_code)]
     /// Clears the entire framebuffer with a grey shadow given by a real number in the range [0,
     /// 1].
     pub fn clear(&mut self, shadow: f32) {
-        let shadow = Pixel {
-            r: (shadow * 255.0).round() as u8,
-            g: (shadow * 255.0).round() as u8,
-            b: (shadow * 255.0).round() as u8,
-        };
+        let shadow = (shadow * 255.0).round() as u8;
         self.framebuffer.fill(shadow);
     }
 
@@ -72,13 +57,13 @@ impl ScreenContextManager {
     /// Clears the entire framebuffer with the given color.
     /// Parameters correspond to RGB colors and must be real numbers in the range [0, 1].
     pub fn clear_with_rgb(&mut self, r: f32, g: f32, b: f32) {
-        let color = Pixel {
-            r: (r * 255.0).round() as u8,
-            g: (g * 255.0).round() as u8,
-            b: (b * 255.0).round() as u8,
-        };
+        let color = Rgb([
+            (r * 255.0).round() as u8,
+            (g * 255.0).round() as u8,
+            (b * 255.0).round() as u8,
+        ]);
 
-        self.framebuffer.fill(color);
+        self.framebuffer = ImageBuffer::from_pixel(self.width, self.height, color);
     }
 
     /// Saves the current framebuffer as an image whose format is derived from the file extension.

@@ -23,10 +23,11 @@ The final image format is determined by the output file extension. The available
 
 - Well documented scene example: [config/basic_scene.ini](./config/basic_scene.ini) 
 - Well documented observer example: [config/basic_observer.ini](./config/basic_observer.ini)
+
 These files together produce the following image:
 <img src="images/example_render.png" alt="A scene showcasing the various primitives, checkerboard texture and light effects available." width="800" />
 
-There's more examples in the config/ folder that aren't documented.
+There's more examples in the [config/](./config) folder that aren't documented.
 
 ## Missing functionality
 
