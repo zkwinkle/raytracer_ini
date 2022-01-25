@@ -16,7 +16,5 @@ pub const SHADOWS: bool = true;
 pub const MAX_REFLECTIONS: u32 = 10;
 
 /// Default values for args
-pub const DEFAULT_RES: u32 = 600;
-pub const DEFAULT_SCENE: &str = "config/basic_scene.ini";
-pub const DEFAULT_OBSERVER: &str = "config/basic_observer.ini";
-pub const DEFAULT_IMAGE: &str = "images/out.png";
+pub const DEFAULT_RES: u32 = 1000;
+pub const DEFAULT_IMAGE: &str = "out.png";
