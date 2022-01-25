@@ -1,10 +1,11 @@
 use anyhow::Result;
+use indicatif::ProgressIterator;
 use itertools::multiunzip;
-use sdl_wrapper::ScreenContextManager;
 use std::path::Path;
 
 use crate::constants::{MAX_REFLECTIONS, SHADOWS, TOLERANCE, TOLERANCE_MUL};
 use crate::scene::{Light, Observer, Scene};
+use crate::screen::ScreenContextManager;
 use crate::shapes::{Color, Ray, Shape, ShapeCalculations};
 use crate::vec3::Vec3;
 
@@ -19,10 +20,7 @@ pub fn raytrace<P: AsRef<Path>>(
 
     let z_t = observer.plane_z;
 
-    let height = screen.get_height();
-    let update_interval = screen.get_width() / 10;
-
-    for i in 0..screen.get_width() {
+    for i in (0..screen.get_width()).progress() {
         for j in 0..screen.get_height() {
             // Get ray
             let x_t = (f64::from(i) + 0.5) * ratio_x + observer.min_p.x;
@@ -35,14 +33,9 @@ pub fn raytrace<P: AsRef<Path>>(
 
             // Paint
             screen.set_color(color.r as f32, color.g as f32, color.b as f32);
-            screen.plot_pixel(i, (height - 1) - j); // flip images so they're not upside down
-        }
-        if i % update_interval == 0 {
-            screen.present()?;
+            screen.plot_pixel(i, (screen.get_height() - 1) - j); // flip images so they're not upside down
         }
     }
-
-    screen.present()?;
 
     screen.save_img(path)?;
 

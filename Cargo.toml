@@ -7,9 +7,11 @@ authors = ["Ignacio Vargas <ignaevc@gmail.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sdl_wrapper = { git = "https://github.com/zkwinkle/sdl_wrapper" , tag = "v0.3.0" }
 anyhow = { version = "1.0", features = ["backtrace"] }
 configparser = "3.0"
 enum_dispatch = "0.3.7"
 clap = { version = "3.0.10", features = ["derive"] }
 itertools = "0.10.3"
+bytemuck = { version = "1.7.3", features = ["derive"] }
+image = "0.23.14"
+indicatif = "0.17.0-rc.1"

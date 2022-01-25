@@ -1,11 +1,12 @@
 mod constants;
 mod raytracer;
 mod scene;
+mod screen;
 mod shapes;
 mod vec3;
 
 use anyhow::Result;
-use sdl_wrapper::ScreenContextManager;
+use screen::ScreenContextManager;
 
 use clap::Parser;
 use constants::{DEFAULT_IMAGE, DEFAULT_OBSERVER, DEFAULT_RES, DEFAULT_SCENE};
@@ -23,8 +24,7 @@ fn main() -> Result<()> {
     let observer = Observer::read_config(args.observer)?;
 
     // sdl screen
-    let mut screen =
-        ScreenContextManager::new("Ray Tracing Challenge", args.resolution, args.resolution)?;
+    let mut screen = ScreenContextManager::new(args.resolution, args.resolution);
 
     // raytrace :)
     raytrace(args.image, &observer, &scene, &mut screen)?;
